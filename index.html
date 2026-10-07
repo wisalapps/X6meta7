@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>نبض الهاتف - التشخيص الشامل وكشف القطع المبدولة</title>
+    <meta name="theme-color" content="#110d0b">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <link rel="icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="نبض الهاتف">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- كل الملفات محلية ليعمل التطبيق بدون إنترنت. الخط يُحفظ تلقائياً بعد أول فتح -->
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="fa/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --om-red: #db161b; --om-green: #008a47; --om-white: #ffffff; --om-gold: #d8ad5c; --om-sand: #f2ebe1; }
+        /* نقش هندسي عماني: نجمة ثمانية خافتة */
+        body { font-family: 'Tajawal', system-ui, -apple-system, Tahoma, sans-serif; background-color: #110d0b; color: #f2ebe1; -webkit-tap-highlight-color: transparent;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23d8ad5c' stroke-opacity='0.07' stroke-width='1'%3E%3Cpath d='M36 14l6.5 15.5L58 36l-15.5 6.5L36 58l-6.5-15.5L14 36l15.5-6.5z'/%3E%3Crect x='24' y='24' width='24' height='24' transform='rotate(45 36 36)'/%3E%3Crect x='24' y='24' width='24' height='24'/%3E%3C/g%3E%3C/svg%3E");
+            background-attachment: fixed; }
+        .glass-panel { background: rgba(27, 22, 19, 0.94); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(216, 173, 92, 0.14); }
+        .pulse-glow { box-shadow: 0 0 25px rgba(0, 138, 71, 0.3); }
+        /* شريط ألوان العلم: أبيض وأحمر وأخضر */
+        .flag-strip { height: 5px; background: linear-gradient(to bottom, #fff 0 33.3%, var(--om-red) 33.3% 66.6%, var(--om-green) 66.6% 100%); }
+        /* شُرفات القلاع العمانية */
+        .crenel { height: 10px; background: linear-gradient(to right, transparent 0 50%, rgba(216,173,92,.28) 50% 100%) 0 0 / 20px 6px repeat-x, linear-gradient(rgba(216,173,92,.28), rgba(216,173,92,.28)) 0 6px / 100% 4px no-repeat; }
+        .logo-tile { background: linear-gradient(135deg, #db161b 0 46%, #fff 46% 54%, #008a47 54% 100%); }
+        .om-hero { background-image: radial-gradient(circle at 15% 0%, rgba(219,22,27,.16), transparent 45%), radial-gradient(circle at 100% 100%, rgba(0,138,71,.18), transparent 50%); }
+        .om-title { border-right: 4px solid var(--om-red); padding-right: .6rem; }
+        .guide-hl { outline: 2px solid var(--om-gold); outline-offset: 3px; transition: outline-color .3s; }
+        .seg button { flex: 1; padding: .4rem .25rem; font-size: 11px; font-weight: 700; border-radius: .6rem; border: 1px solid #41372f; color: #a8978a; background: #110d0b; }
+        .seg button.on-ok { background: rgba(0,138,71,.2); border-color: #0e9f5b; color: #5fca8f; }
+        .seg button.on-bad { background: rgba(219,22,27,.18); border-color: #db161b; color: #f17b7f; }
+        .seg button.on-na { background: #2c241f; border-color: #5c4f46; color: #e3d8ca; }
+        #print-area { display: none; }
+        [id^="card-"] { scroll-margin-top: 96px; }
+        @media print {
+            body { background: #fff !important; }
+            body > *:not(#print-area) { display: none !important; }
+            #print-area { display: block !important; }
+            #print-area img { width: 100%; }
+        }
+        @keyframes pulse-slow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.85; } }
+        .animate-pulse-slow { animation: pulse-slow 3s infinite; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .toast-anim { animation: slideIn 0.3s ease forwards; }
+        .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+        .safe-bottom { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
+        .full { position: fixed; inset: 0; z-index: 100; display: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+        #touch-ov { background: #000; grid-auto-rows: 1fr; }
+        #touch-ov .c { border: 1px solid #262626; }
+        .ring { background: conic-gradient(var(--ringc, #0e9f5b) calc(var(--p, 0) * 1%), #2c241f 0); }
+        .chip { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid #41372f; color: #a8978a; white-space: nowrap; }
+        .chip.pass { color: #5fca8f; background: rgba(0,138,71,.14); border-color: rgba(14,159,91,.45); }
+        .chip.fail { color: #f17b7f; background: rgba(219,22,27,.12); border-color: rgba(219,22,27,.45); }
+        input[type=text], input[type=number], input[type=tel], select { font-size: 16px; }
+        button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #d8ad5c; outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) { .animate-pulse-slow, .animate-ping, .toast-anim { animation: none !important; } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-rose-500 selection:text-white">
+
+    <!-- نافذة بيانات الجهاز -->
+    <div id="device-modal" class="hidden fixed inset-0 z-[9999] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl space-y-5 text-right shadow-2xl overflow-hidden">
+            <div class="flag-strip -mx-6 -mt-6"></div>
+            <div class="text-center space-y-3">
+                <img src="icon-192.png" alt="" class="w-20 h-20 mx-auto rounded-2xl shadow-xl animate-pulse-slow">
+                <h2 class="text-xl font-bold text-white">بيانات الجهاز المراد فحصه</h2>
+                <p class="text-xs text-neutral-400 leading-relaxed">افتح التطبيق على الهاتف الذي تريد فحصه. نتعرف عليه تلقائياً قدر ما يسمح المتصفح، وأكمل الباقي من القوائم.</p>
+            </div>
+            <div class="space-y-4">
+                <div id="detect-box" class="hidden p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-200 text-xs leading-relaxed"></div>
+                <div>
+                    <label for="m-brand" class="block text-xs font-bold text-emerald-400 mb-1.5">الشركة المصنعة:</label>
+                    <select id="m-brand" onchange="fillModels()" class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-3 text-white focus:outline-none focus:border-emerald-500"></select>
+                </div>
+                <div>
+                    <label for="m-model-sel" class="block text-xs font-bold text-emerald-400 mb-1.5">الطراز:</label>
+                    <select id="m-model-sel" onchange="toggleCustom()" class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-3 text-white focus:outline-none focus:border-emerald-500"></select>
+                </div>
+                <div id="m-custom-wrap" class="hidden">
+                    <label for="m-model" class="block text-xs font-bold text-emerald-400 mb-1.5">اكتب اسم الطراز كما في الإعدادات ← حول الهاتف:</label>
+                    <input type="text" id="m-model" placeholder="مثال: Galaxy A54" class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label for="m-storage" class="block text-xs font-bold text-emerald-400 mb-1.5">سعة التخزين:</label>
+                    <select id="m-storage" class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-3 text-white focus:outline-none focus:border-emerald-500">
+                        <option value="">لا أعرف</option>
+                        <option value="64">64 جيجابايت</option>
+                        <option value="128">128 جيجابايت</option>
+                        <option value="256">256 جيجابايت</option>
+                        <option value="512">512 جيجابايت</option>
+                        <option value="1024">1 تيرابايت</option>
+                        <option value="2048">2 تيرابايت</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="saveDeviceModal()" class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> حفظ ومتابعة
+                </button>
+                <button onclick="closeDeviceModal()" class="px-5 bg-neutral-900 border border-neutral-800 text-neutral-300 font-bold rounded-xl">لاحقاً</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="glass-panel sticky top-0 z-50 safe-top" style="border-width:0">
+        <div class="flag-strip"></div>
+        <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="icon-192.png" alt="" class="w-11 h-11 rounded-2xl shadow-lg animate-pulse-slow">
+                <div>
+                    <h1 class="font-black text-lg text-white leading-tight">نبض الهاتف <span class="text-amber-400 text-sm font-bold">XMETA</span></h1>
+                    <p class="text-xs text-neutral-400">افحص قبل أن تشتري • صُنع في عُمان</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openDeviceModal()" class="text-xs bg-neutral-900 text-amber-300 px-3 py-1.5 rounded-xl border border-amber-500/30 flex items-center gap-1.5 max-w-[130px]">
+                    <i class="fa-solid fa-sliders"></i> <span id="header-device-badge" class="truncate">اسم الجهاز</span>
+                </button>
+                <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-1.5 h-1.5 ml-1.5 bg-emerald-400 rounded-full animate-ping"></span> نظام حي
+                </span>
+            </div>
+        </div>
+        <div class="crenel"></div>
+    </header>
+
+    <main class="flex-grow max-w-4xl w-full mx-auto p-4 safe-bottom">
+        <div class="grid grid-cols-8 gap-1 mb-6 bg-neutral-950 p-1.5 rounded-2xl border border-neutral-900 text-[9px] sm:text-xs" role="tablist">
+            <button onclick="switchTab('scan')" id="tab-btn-scan" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-stethoscope"></i><span>الفحص</span></button>
+            <button onclick="switchTab('screen')" id="tab-btn-screen" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-tv"></i><span>الشاشة</span></button>
+            <button onclick="switchTab('camera')" id="tab-btn-camera" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-camera"></i><span>الكاميرا</span></button>
+            <button onclick="switchTab('sensors')" id="tab-btn-sensors" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-gauge-high"></i><span>المختبر</span></button>
+            <button onclick="switchTab('specs')" id="tab-btn-specs" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-microchip"></i><span>المواصفات</span></button>
+            <button onclick="switchTab('guide')" id="tab-btn-guide" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-shield-halved"></i><span>القطع المبدولة</span></button>
+            <button onclick="switchTab('market')" id="tab-btn-market" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-coins"></i><span>التسعير</span></button>
+            <button onclick="switchTab('report')" id="tab-btn-report" class="tab-btn py-2.5 px-0.5 rounded-xl font-medium flex flex-col items-center gap-1"><i class="fa-solid fa-file-lines"></i><span>التقرير</span></button>
+        </div>
+
+        <!-- ===== الفحص ===== -->
+        <section id="section-scan" class="space-y-4 tab-content">
+            <div id="install-box" class="hidden glass-panel p-4 rounded-2xl border border-emerald-500/30 text-sm space-y-3">
+                <p id="install-text" class="text-neutral-200 leading-relaxed"></p>
+                <div class="flex gap-2">
+                    <button id="install-btn" class="hidden bg-emerald-600 text-white font-bold py-2 px-4 rounded-xl text-xs">تثبيت التطبيق</button>
+                    <button onclick="hideInstall()" class="bg-neutral-900 border border-neutral-800 text-neutral-300 font-bold py-2 px-4 rounded-xl text-xs">إخفاء</button>
+                </div>
+            </div>
+
+            <div class="glass-panel om-hero p-6 rounded-3xl relative overflow-hidden">
+                <div class="flex items-center gap-5">
+                    <div id="ring" class="ring w-24 h-24 rounded-full flex-none grid place-items-center pulse-glow">
+                        <div class="w-[78px] h-[78px] rounded-full bg-[#121212] grid place-items-center text-center">
+                            <div><span id="health-score" class="text-2xl font-black text-white">--</span><span class="block text-[10px] text-neutral-400">من 100</span></div>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h2 id="sum-title" class="text-lg font-bold text-white">ابدأ فحص الجهاز</h2>
+                        <p id="sum-text" class="text-xs text-neutral-400 mt-1 leading-relaxed">نفّذ الفحوصات، وكل نتيجة تُحسب في التقييم وفي تقدير السعر.</p>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <button onclick="shareReport()" class="text-xs bg-neutral-900 text-emerald-400 font-bold px-3 py-2 rounded-xl border border-neutral-800 flex items-center gap-1.5"><i class="fa-solid fa-share-nodes"></i> مشاركة التقرير</button>
+                            <button onclick="resetAll()" class="text-xs bg-neutral-900 text-neutral-300 font-bold px-3 py-2 rounded-xl border border-neutral-800 flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> فحص جهاز آخر</button>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="startGuided()" class="mt-5 w-full bg-gradient-to-l from-rose-600 to-rose-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-rose-900/40 flex items-center justify-center gap-2"><i class="fa-solid fa-route"></i> الفحص الموجَّه خطوة بخطوة</button>
+                <p class="text-[11px] text-neutral-400 text-center mt-2">ينقلك التطبيق من فحص إلى الذي يليه حتى التقرير النهائي</p>
+            </div>
+
+            <div id="stats-strip" class="hidden grid grid-cols-3 gap-2 text-center"></div>
+
+            <div id="tests-list" class="space-y-2.5"></div>
+        </section>
+
+        <!-- ===== القطع المبدولة ===== -->
+        <section id="section-guide" class="space-y-4 tab-content hidden">
+            <!-- التحقق من IMEI -->
+            <div id="card-imei" class="glass-panel p-6 rounded-3xl space-y-4 text-right">
+                <div class="border-b border-neutral-900 pb-4 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-xl flex-none"><i class="fa-solid fa-barcode"></i></div>
+                    <div class="flex-1">
+                        <h2 class="text-lg font-bold text-white">التحقق من رقم IMEI</h2>
+                        <p class="text-xs text-neutral-400">اطلب <span dir="ltr" class="font-mono text-sky-300">*#06#</span> واكتب الرقم، ونتحقق من صحته رياضياً</p>
+                    </div>
+                    <span id="st-imei" class="chip">لم يُفحص</span>
+                </div>
+                <div class="flex gap-2">
+                    <input type="tel" id="imei-in" inputmode="numeric" maxlength="17" dir="ltr" placeholder="15 رقماً" oninput="checkImei()" class="flex-1 min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-white font-mono tracking-wider text-center focus:outline-none focus:border-sky-500">
+                    <button onclick="copyCode('*#06#')" class="bg-neutral-900 border border-neutral-800 text-sky-300 font-bold px-3 rounded-xl text-xs whitespace-nowrap"><i class="fa-regular fa-copy"></i> *#06#</button>
+                </div>
+                <div id="imei-out" class="text-xs leading-relaxed text-neutral-400">الرقم المزوّر أو المعدَّل يفشل غالباً في خوارزمية لون (Luhn) التي تستخدمها كل الشركات.</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="openImeiSite('info')" class="bg-neutral-900/60 p-3 rounded-xl border border-neutral-800 text-xs font-bold text-white flex items-center gap-2 justify-center"><i class="fa-solid fa-magnifying-glass text-sky-400"></i> فحص الرقم في imei.info</button>
+                    <button onclick="openImeiSite('apple')" class="bg-neutral-900/60 p-3 rounded-xl border border-neutral-800 text-xs font-bold text-white flex items-center gap-2 justify-center"><i class="fa-brands fa-apple text-neutral-200"></i> ضمان أبل الرسمي</button>
+                </div>
+                <p class="text-xs text-neutral-300">هل يطابق الرقم ما هو مكتوب على العلبة وفي الإعدادات ← حول الهاتف؟</p>
+                <div class="flex gap-2">
+                    <button onclick="saveImei(true)" class="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm">يطابق</button>
+                    <button onclick="saveImei(false)" class="flex-1 bg-rose-500/15 border border-rose-500/40 text-rose-300 font-bold py-3 rounded-xl text-sm">لا يطابق</button>
+                </div>
+            </div>
+
+            <!-- الأزرار والمنافذ -->
+            <div id="card-buttons" class="glass-panel p-6 rounded-3xl space-y-4 text-right">
+                <div class="border-b border-neutral-900 pb-4 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl flex-none"><i class="fa-solid fa-toggle-on"></i></div>
+                    <div class="flex-1">
+                        <h2 class="text-lg font-bold text-white">الأزرار والمنافذ والاتصال</h2>
+                        <p class="text-xs text-neutral-400">أجزاء لا يصل إليها أي متصفح، جرّبها بيدك وحدد حالة كل واحدة</p>
+                    </div>
+                    <span id="st-buttons" class="chip">لم يُفحص</span>
+                </div>
+                <div id="hw-list" class="space-y-2"></div>
+                <button onclick="saveHw()" class="w-full bg-amber-500 text-black font-bold py-3 rounded-xl text-sm">حفظ النتيجة</button>
+            </div>
+
+            <div id="card-parts" class="glass-panel p-6 rounded-3xl space-y-5 text-right">
+                <div class="border-b border-neutral-900 pb-4 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl flex-none"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="flex-1">
+                        <h2 class="text-lg font-bold text-white">فحص القطع المبدولة</h2>
+                        <p class="text-xs text-neutral-400">حدد كل ما ينطبق على الجهاز من إعداداته ومظهره</p>
+                    </div>
+                    <span id="st-parts" class="chip">لم يُفحص</span>
+                </div>
+                <div id="parts-list" class="space-y-2"></div>
+                <div class="flex gap-2">
+                    <button onclick="setAndToast('parts','pass','لا توجد علامات تبديل ظاهرة')" class="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm">لا شيء مما سبق</button>
+                    <button onclick="saveParts()" class="flex-1 bg-rose-500/15 border border-rose-500/40 text-rose-300 font-bold py-3 rounded-xl text-sm">حفظ ما حددته</button>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-3xl space-y-4 text-right">
+                <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-book-open text-emerald-400"></i> دليل الخبير</h2>
+                <div class="bg-neutral-900/60 p-5 rounded-2xl border border-neutral-800 space-y-3">
+                    <h3 class="text-sm font-bold text-sky-400 flex items-center gap-2"><i class="fa-solid fa-lock"></i> قبل أي شيء: الحساب والقفل</h3>
+                    <ul class="space-y-2.5 text-xs text-neutral-300 leading-relaxed">
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-sky-400 mt-1"></i><span><strong>آيفون:</strong> تأكد أن البائع سجّل خروجه من Apple ID وأوقف "تحديد الموقع"، فالجهاز المقفول بحساب صاحبه لا يمكن استخدامه.</span></li>
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-sky-400 mt-1"></i><span><strong>أندرويد:</strong> تأكد من حذف حساب Google قبل إعادة الضبط، وإلا طلب الجهاز حساب المالك القديم.</span></li>
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-sky-400 mt-1"></i><span>اطلب <strong>*#06#</strong> وطابق رقم IMEI مع العلبة والإعدادات.</span></li>
+                    </ul>
+                </div>
+                <div class="bg-neutral-900/60 p-5 rounded-2xl border border-neutral-800 space-y-3">
+                    <h3 class="text-sm font-bold text-emerald-400 flex items-center gap-2"><i class="fa-solid fa-tv"></i> الشاشة المبدولة</h3>
+                    <ul class="space-y-2.5 text-xs text-neutral-300 leading-relaxed">
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-emerald-400 mt-1"></i><span><strong>رسائل النظام:</strong> في الآيفون: الإعدادات ← عام ← حول. ظهور "قطعة غير معروفة" يعني شاشة غير أصلية، وفي الأنظمة الحديثة يوجد قسم "سجل القطع والخدمة".</span></li>
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-emerald-400 mt-1"></i><span><strong>True Tone:</strong> اختفاؤه من إعدادات الشاشة علامة قوية على التبديل.</span></li>
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-emerald-400 mt-1"></i><span><strong>المظهر:</strong> الشاشة التجارية أقل سطوعاً وألوانها باهتة وحوافها السوداء أعرض، وأي فراغ أو أثر غراء حول الإطار يعني أن الجهاز فُتح.</span></li>
+                    </ul>
+                </div>
+                <div class="bg-neutral-900/60 p-5 rounded-2xl border border-neutral-800 space-y-3">
+                    <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2"><i class="fa-solid fa-battery-half"></i> البطارية</h3>
+                    <ul class="space-y-2.5 text-xs text-neutral-300 leading-relaxed">
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-amber-400 mt-1"></i><span><strong>آيفون:</strong> الإعدادات ← البطارية ← صحة البطارية. أقل من 80% تعني أنها تحتاج تغييراً، ورسالة "قطعة غير معروفة" تعني بطارية تجارية.</span></li>
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-amber-400 mt-1"></i><span><strong>سامسونج:</strong> تطبيق Samsung Members ← الدعم ← تشخيص الهاتف ← حالة البطارية.</span></li>
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-amber-400 mt-1"></i><span>بروز في ظهر الجهاز أو الشاشة يعني انتفاخ البطارية: لا تشترِ الجهاز.</span></li>
+                    </ul>
+                </div>
+                <div class="bg-neutral-900/60 p-5 rounded-2xl border border-neutral-800 space-y-3">
+                    <h3 class="text-sm font-bold text-purple-400 flex items-center gap-2"><i class="fa-solid fa-flask"></i> قوائم الفحص المخفية لكل الشركات</h3>
+                    <p class="text-[11px] text-neutral-400 leading-relaxed">اكتب الكود في لوحة أرقام تطبيق الاتصال، وأغلبها يفتح دون الضغط على اتصال. قد تختلف الأكواد حسب الطراز وإصدار النظام، وبعضها تعطّله شركات الاتصالات. شركة جهازك تظهر أولاً.</p>
+                    <div id="codes-list" class="space-y-2"></div>
+                </div>
+                <div class="bg-neutral-900/60 p-5 rounded-2xl border border-neutral-800 space-y-3">
+                    <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2"><i class="fa-solid fa-droplet"></i> أضرار الماء</h3>
+                    <ul class="space-y-2.5 text-xs text-neutral-300 leading-relaxed">
+                        <li class="flex items-start gap-2.5"><i class="fa-solid fa-circle-check text-cyan-400 mt-1"></i><span>في الآيفون مؤشر داخل فتحة الشريحة، إذا كان أحمر فقد تعرض الجهاز للسوائل. ضباب داخل العدسة أو بقع صفراء في الشاشة من علامات الرطوبة أيضاً.</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== الكاميرا ===== -->
+        <section id="section-camera" class="space-y-4 tab-content hidden">
+            <div id="card-camera" class="glass-panel p-6 rounded-3xl space-y-5">
+                <div class="border-b border-neutral-900 pb-4 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl flex-none"><i class="fa-solid fa-camera-retro"></i></div>
+                    <div class="flex-1">
+                        <h2 class="text-lg font-bold text-white">فحص الكاميرات</h2>
+                        <p class="text-xs text-neutral-400">تشغيل الخلفية والأمامية والتقاط صورة للتأكد من الوضوح</p>
+                    </div>
+                    <span id="st-camera" class="chip">لم يُفحص</span>
+                </div>
+                <div class="relative w-full max-w-md mx-auto h-64 bg-neutral-950 rounded-2xl overflow-hidden border border-neutral-800 flex items-center justify-center">
+                    <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+                    <div id="camera-placeholder" class="text-neutral-400 space-y-2 p-4 text-center">
+                        <i class="fa-solid fa-video text-3xl text-cyan-400"></i>
+                        <p class="text-xs">اختر الكاميرا الخلفية أو الأمامية لبدء العدسة المباشرة</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 max-w-md mx-auto">
+                    <button onclick="openCam('environment')" class="bg-cyan-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-camera"></i> الكاميرا الخلفية</button>
+                    <button onclick="openCam('user')" class="bg-cyan-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-camera-rotate"></i> الكاميرا الأمامية</button>
+                    <button onclick="snap()" class="bg-neutral-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-circle-dot"></i> التقاط صورة</button>
+                    <button onclick="stopCam()" class="bg-neutral-800 text-rose-400 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-stop"></i> إيقاف</button>
+                </div>
+                <div class="grid grid-cols-2 gap-3 max-w-md mx-auto text-center">
+                    <div class="bg-neutral-900/80 p-3 rounded-xl border border-neutral-800"><span class="text-[10px] text-neutral-400 block">الخلفية</span><span id="cam-back" class="font-bold text-sm text-neutral-300">لم تُفحص</span></div>
+                    <div class="bg-neutral-900/80 p-3 rounded-xl border border-neutral-800"><span class="text-[10px] text-neutral-400 block">الأمامية</span><span id="cam-front" class="font-bold text-sm text-neutral-300">لم تُفحص</span></div>
+                </div>
+                <p id="cam-count" class="hidden text-[11px] text-neutral-400 text-center"></p>
+                <img id="captured-preview" class="hidden w-full max-w-md mx-auto rounded-2xl border border-neutral-800" alt="الصورة الملتقطة">
+                <div id="sharp-box" class="hidden max-w-md mx-auto bg-neutral-900/80 p-4 rounded-2xl border border-neutral-800 space-y-2">
+                    <div class="flex items-center justify-between text-xs"><span class="text-neutral-400"><i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> تحليل الصورة الآلي</span><span id="sharp-label" class="font-bold"></span></div>
+                    <div class="h-2.5 bg-black rounded-full overflow-hidden border border-neutral-800"><div id="sharp-bar" class="h-full w-0" style="transition:width .4s"></div></div>
+                    <p id="sharp-note" class="text-[11px] text-neutral-400 leading-relaxed"></p>
+                </div>
+                <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs leading-relaxed max-w-md mx-auto">
+                    <i class="fa-solid fa-circle-info"></i> المتصفح يعرض دقة بث الفيديو فقط ولا يستطيع قراءة دقة العدسة بالميجابكسل. للتأكد منها صوّر من تطبيق الكاميرا وافتح تفاصيل الصورة.
+                </div>
+                <p class="text-xs text-neutral-300 text-center">هل الصورة واضحة، والتركيز يعمل، ولا توجد بقع أو غبار داخل العدسة؟</p>
+                <div class="flex gap-2 max-w-md mx-auto">
+                    <button onclick="setAndToast('camera','pass',camNote())" class="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm">الكاميرات سليمة</button>
+                    <button onclick="setAndToast('camera','fail','خلل في الكاميرا • ' + camNote())" class="flex-1 bg-rose-500/15 border border-rose-500/40 text-rose-300 font-bold py-3 rounded-xl text-sm">يوجد خلل</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== المواصفات ===== -->
+        <section id="section-specs" class="space-y-4 tab-content hidden">
+            <div class="glass-panel p-6 rounded-3xl space-y-4">
+                <div class="flex items-center justify-between border-b border-neutral-900 pb-4 gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold">ما يقرؤه التطبيق من جهازك</h2>
+                        <p class="text-xs text-neutral-400">قيم حقيقية مقروءة الآن، وما لا يمكن قراءته مذكور بوضوح</p>
+                    </div>
+                    <span class="px-3 py-1 bg-neutral-900 text-emerald-400 text-xs rounded-full border border-neutral-800 font-bold flex-none">حقيقي</span>
+                </div>
+                <div class="space-y-2.5" id="specs-list"><p class="text-xs text-neutral-400">جاري القراءة…</p></div>
+                <button onclick="openLink('specs')" class="w-full bg-neutral-900 border border-neutral-800 text-emerald-400 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-list-check"></i> المواصفات الكاملة للطراز (GSMArena)</button>
+            </div>
+            <div class="glass-panel p-5 rounded-3xl space-y-2">
+                <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2"><i class="fa-solid fa-lock"></i> ما لا يستطيع أي متصفح قراءته</h3>
+                <p class="text-xs text-neutral-300 leading-relaxed">حرارة المعالج، صحة البطارية، دقة الكاميرا بالميجابكسل، مساحة التخزين الكلية، الرقم التسلسلي و IMEI، وطراز الآيفون. هذه قيود أمان وخصوصية من أبل وجوجل، لذلك يوجّهك التطبيق لقراءتها من إعدادات الهاتف.</p>
+            </div>
+        </section>
+
+        <!-- ===== التسعير ===== -->
+        <section id="section-market" class="space-y-4 tab-content hidden">
+            <div class="glass-panel p-6 rounded-3xl space-y-4">
+                <div class="border-b border-neutral-900 pb-4">
+                    <h2 class="text-lg font-bold">السعر الحقيقي من السوق</h2>
+                    <p class="text-xs text-neutral-400">الأسعار تتغير يومياً، لذلك نفتح لك المصادر الحقيقية بدل عرض رقم قديم</p>
+                </div>
+                <div class="flex items-center gap-3 bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800">
+                    <i class="fa-solid fa-mobile-screen text-emerald-400 text-lg"></i>
+                    <div class="flex-1 min-w-0"><span class="block text-[11px] text-neutral-400">الجهاز</span><span id="pm" class="block text-sm font-bold text-white truncate">لم يُحدد</span></div>
+                    <button onclick="openDeviceModal()" class="text-xs bg-neutral-950 text-emerald-400 font-bold px-3 py-2 rounded-xl border border-neutral-800">تغيير</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <button onclick="openLink('newp')" class="bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800 flex items-center gap-3 text-right"><i class="fa-solid fa-cart-shopping text-emerald-400 text-lg w-6"></i><span><span class="block text-sm font-bold text-white">سعر الجديد في عُمان</span><span class="text-[11px] text-neutral-400">بحث Google</span></span></button>
+                    <button onclick="openLink('used')" class="bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800 flex items-center gap-3 text-right"><i class="fa-solid fa-tags text-amber-400 text-lg w-6"></i><span><span class="block text-sm font-bold text-white">أسعار المستعمل في عُمان</span><span class="text-[11px] text-neutral-400">إعلانات السوق المفتوح</span></span></button>
+                    <button onclick="openLink('amazon')" class="bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800 flex items-center gap-3 text-right"><i class="fa-solid fa-box text-sky-400 text-lg w-6"></i><span><span class="block text-sm font-bold text-white">سعر الجديد أونلاين</span><span class="text-[11px] text-neutral-400">Amazon.ae</span></span></button>
+                    <button onclick="openLink('specs')" class="bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800 flex items-center gap-3 text-right"><i class="fa-solid fa-list-check text-purple-400 text-lg w-6"></i><span><span class="block text-sm font-bold text-white">المواصفات الكاملة</span><span class="text-[11px] text-neutral-400">GSMArena</span></span></button>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-3xl space-y-4">
+                <div class="border-b border-neutral-900 pb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold">حاسبة القيمة العادلة للمستعمل</h2>
+                        <p class="text-xs text-neutral-400">سعر الجديد + عمر الجهاز + نتائج فحوصاتك</p>
+                    </div>
+                    <div class="bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-xl text-emerald-400 text-xs font-bold flex items-center gap-2 flex-none"><i class="fa-solid fa-coins"></i> ر.ع</div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="np" class="block text-xs font-bold text-emerald-400 mb-1.5">سعر الجديد (ر.ع):</label>
+                        <input type="number" id="np" inputmode="numeric" min="10" max="1500" step="1" oninput="saveInputs()" placeholder="10 - 1500" class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-3 text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label for="age" class="block text-xs font-bold text-emerald-400 mb-1.5">عمر الجهاز:</label>
+                        <select id="age" onchange="saveInputs()" class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-3 text-white focus:outline-none focus:border-emerald-500">
+                            <option value="unknown">لا أعرف</option>
+                            <option value="0.8">أقل من سنة</option>
+                            <option value="0.65">سنة إلى سنتين</option>
+                            <option value="0.5">2 إلى 3 سنوات</option>
+                            <option value="0.38">3 إلى 4 سنوات</option>
+                            <option value="0.28">أكثر من 4 سنوات</option>
+                        </select>
+                    </div>
+                </div>
+                <p id="np-err" class="hidden text-[11px] text-rose-400 leading-relaxed"></p>
+                <div class="p-4 bg-neutral-900/80 rounded-2xl border border-neutral-800 text-center space-y-1">
+                    <span class="text-xs text-neutral-400 block">النطاق السعري التقديري بالريال العماني:</span>
+                    <div id="market-price-range" class="text-2xl font-black text-amber-400">--</div>
+                </div>
+                <div id="deduct-box" class="space-y-2"></div>
+                <div class="space-y-2">
+                    <h3 class="font-bold text-sm text-emerald-400">بالعملات الخليجية والدولار (أسعار صرف ثابتة):</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="market-currency-list"></div>
+                </div>
+                <p class="text-[11px] text-neutral-400 leading-relaxed">التقدير مبني على نسب إهلاك تقريبية، وأجهزة أبل والإصدارات الحديثة تحتفظ بقيمتها أكثر عادة. قارن دائماً بأسعار المستعمل في السوق.</p>
+            </div>
+        </section>
+
+        <!-- ===== الشاشة ===== -->
+        <section id="section-screen" class="space-y-4 tab-content hidden">
+            <div id="card-screen" class="glass-panel p-6 rounded-3xl space-y-4 text-center">
+                <div class="flex items-center justify-between gap-3 text-right">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-emerald-400 text-xl flex-none"><i class="fa-solid fa-tv"></i></div>
+                        <div>
+                            <h2 class="text-base font-bold">البكسل الميت واحتراق الشاشة (8 شاشات)</h2>
+                            <p class="text-xs text-neutral-400">ارفع السطوع لأقصى حد ثم انقر للانتقال. الرمادي الغامق يكشف احتراق شاشات OLED، والتدرج يكشف تقطع الألوان</p>
+                        </div>
+                    </div>
+                    <span id="st-screen" class="chip">لم يُفحص</span>
+                </div>
+                <button onclick="runColors()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> بدء فحص الشاشة</button>
+            </div>
+            <div id="card-touch" class="glass-panel p-6 rounded-3xl space-y-4 text-center">
+                <div class="flex items-center justify-between gap-3 text-right">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-sky-400 text-xl flex-none"><i class="fa-solid fa-hand-pointer"></i></div>
+                        <div>
+                            <h2 class="text-base font-bold">شاشة اللمس</h2>
+                            <p class="text-xs text-neutral-400">مرّر إصبعك على كل المربعات حتى تتلون جميعها</p>
+                        </div>
+                    </div>
+                    <span id="st-touch" class="chip">لم يُفحص</span>
+                </div>
+                <button onclick="runTouch()" class="w-full bg-sky-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> بدء فحص اللمس</button>
+            </div>
+        </section>
+
+        <!-- ===== المختبر ===== -->
+        <section id="section-sensors" class="space-y-4 tab-content hidden">
+            <!-- الفحص الصوتي الآلي -->
+            <div id="card-audio" class="glass-panel om-hero p-5 rounded-2xl space-y-3 border border-amber-500/30">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center text-lg border border-amber-500/30 flex-none"><i class="fa-solid fa-wave-square"></i></div>
+                    <div class="flex-1"><h3 class="font-bold text-sm text-white">الفحص الصوتي الآلي <span class="text-[10px] bg-rose-600 text-white px-1.5 py-0.5 rounded-md mr-1">جديد</span></h3><p class="text-[11px] text-neutral-400">السماعة تُصدر نغمات والمايكروفون يلتقطها، فيُحكم على الاثنين بقياس فعلي</p></div>
+                </div>
+                <p class="text-[11px] text-neutral-300 leading-relaxed">ارفع الصوت، وضع الهاتف على سطح في مكان هادئ، ولا تغطِّ أسفله. يستغرق 8 ثوانٍ تقريباً.</p>
+                <button id="aa-btn" onclick="autoAudio()" class="w-full bg-amber-500 text-black font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> ابدأ الفحص الآلي</button>
+                <div id="aa-steps" class="hidden grid grid-cols-4 gap-1.5 text-center"></div>
+                <p id="aa-st" class="text-[11px] text-neutral-400 min-h-[1rem] leading-relaxed"></p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- السماعات -->
+                <div id="card-speaker" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-blue-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-volume-high"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">السماعات</h3><p class="text-[11px] text-neutral-400">نغمة نقية بدون خشخشة أو تقطع</p></div>
+                        <span id="st-speaker" class="chip">لم يُفحص</span>
+                    </div>
+                    <p id="silent-hint" class="hidden text-[11px] text-amber-300 leading-relaxed"><i class="fa-solid fa-bell-slash"></i> في الآيفون لن يخرج صوت إذا كان زر الصامت الجانبي مفعّلاً.</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="tone(-1)" class="bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs">يسار</button>
+                        <button onclick="tone(0)" class="bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs">الجهتان</button>
+                        <button onclick="tone(1)" class="bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs">يمين</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="setAndToast('speaker','pass','الصوت واضح')" class="flex-1 bg-neutral-900 border border-emerald-500/40 text-emerald-400 font-bold py-2 rounded-xl text-xs">واضح</button>
+                        <button onclick="setAndToast('speaker','fail','صوت ضعيف أو مشوّش')" class="flex-1 bg-neutral-900 border border-rose-500/40 text-rose-300 font-bold py-2 rounded-xl text-xs">ضعيف أو مشوّش</button>
+                    </div>
+                </div>
+
+                <!-- المايكروفون -->
+                <div id="card-mic" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-pink-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-microphone"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">المايكروفون</h3><p class="text-[11px] text-neutral-400">تكلّم وراقب المؤشر، يُسجَّل تلقائياً</p></div>
+                        <span id="st-mic" class="chip">لم يُفحص</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="startMic()" class="bg-pink-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-microphone"></i> تشغيل</button>
+                        <button onclick="stopMicBtn()" class="bg-neutral-800 text-rose-300 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-microphone-slash"></i> إيقاف</button>
+                    </div>
+                    <div class="h-3 bg-black rounded-full overflow-hidden border border-neutral-800"><div id="mic-bar" class="h-full w-0 bg-gradient-to-l from-emerald-400 to-lime-300" style="transition:width .08s"></div></div>
+                    <p id="mic-st" class="text-[11px] text-neutral-400 min-h-[1rem]"></p>
+                    <button onclick="setAndToast('mic','fail','المايكروفون لا يلتقط الصوت')" class="w-full bg-neutral-900 border border-rose-500/40 text-rose-300 font-bold py-2 rounded-xl text-xs">المؤشر لا يتحرك</button>
+                </div>
+
+                <!-- الاهتزاز -->
+                <div id="card-vibration" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-purple-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-mobile-screen"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">محرك الاهتزاز</h3><p class="text-[11px] text-neutral-400" id="vib-sub">اضغط وأمسك الهاتف</p></div>
+                        <span id="st-vibration" class="chip">لم يُفحص</span>
+                    </div>
+                    <button id="vib-btn" onclick="navigator.vibrate([300,150,300,150,600])" class="w-full bg-purple-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-wave-square"></i> اهتزاز الآن</button>
+                    <ol id="vib-manual" class="hidden list-decimal pr-5 text-[11px] text-neutral-300 leading-relaxed space-y-1">
+                        <li>أبل لا تسمح لأي تطبيق ويب بتشغيل الاهتزاز، لذلك نفحصه يدوياً.</li>
+                        <li>الإعدادات ← الأصوات والحس اللمسي: تأكد أن الاهتزاز مفعّل.</li>
+                        <li>حرّك زر الصامت الجانبي، أو اضغط مطولاً زر الإجراء في الأجهزة الأحدث، ويجب أن تشعر باهتزاز واضح.</li>
+                    </ol>
+                    <div class="flex gap-2">
+                        <button onclick="setAndToast('vibration','pass','الاهتزاز يعمل')" class="flex-1 bg-neutral-900 border border-emerald-500/40 text-emerald-400 font-bold py-2 rounded-xl text-xs">شعرت به</button>
+                        <button onclick="setAndToast('vibration','fail','لا يوجد اهتزاز')" class="flex-1 bg-neutral-900 border border-rose-500/40 text-rose-300 font-bold py-2 rounded-xl text-xs">لم أشعر بشيء</button>
+                    </div>
+                </div>
+
+                <!-- البطارية -->
+                <div id="card-battery" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-amber-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-battery-three-quarters"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">صحة البطارية</h3><p class="text-[11px] text-neutral-400">اقرأها من الإعدادات واكتبها هنا</p></div>
+                        <span id="st-battery" class="chip">لم يُفحص</span>
+                    </div>
+                    <p id="bat-live" class="hidden text-[11px] text-emerald-300"></p>
+                    <p id="bat-path" class="text-[11px] text-neutral-300 leading-relaxed"></p>
+                    <div class="flex gap-2">
+                        <input type="number" id="bat-h" inputmode="numeric" min="1" max="100" placeholder="النسبة %" class="flex-1 min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+                        <button onclick="saveBattery()" class="bg-amber-500 text-black font-bold px-4 rounded-xl text-xs">حفظ</button>
+                    </div>
+                    <label class="flex items-start gap-2 text-[11px] text-neutral-300"><input type="checkbox" id="bat-unk" class="mt-0.5 w-4 h-4 accent-rose-500"> تظهر رسالة "قطعة غير معروفة" في صفحة البطارية</label>
+                </div>
+
+                <!-- الحساس -->
+                <div id="card-motion" class="glass-panel p-5 rounded-2xl space-y-3 col-span-1 sm:col-span-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-amber-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-compass-drafting"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">حساس الميلان والحركة (Gyroscope)</h3><p class="text-[11px] text-neutral-400">فعّله ثم أمِل الهاتف في كل الاتجاهات</p></div>
+                        <span id="st-motion" class="chip">لم يُفحص</span>
+                    </div>
+                    <button onclick="startMotion()" class="w-full bg-amber-500 text-black font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-power-off"></i> تفعيل الحساس</button>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-black p-2.5 rounded-xl border border-neutral-800"><span class="text-[10px] text-neutral-400 block">الدوران</span><span id="motion-alpha" class="font-bold text-xs text-emerald-400">0°</span></div>
+                        <div class="bg-black p-2.5 rounded-xl border border-neutral-800"><span class="text-[10px] text-neutral-400 block">الميلان</span><span id="motion-beta" class="font-bold text-xs text-blue-400">0°</span></div>
+                        <div class="bg-black p-2.5 rounded-xl border border-neutral-800"><span class="text-[10px] text-neutral-400 block">الجانبي</span><span id="motion-gamma" class="font-bold text-xs text-amber-400">0°</span></div>
+                    </div>
+                    <p id="mo-st" class="text-[11px] text-neutral-400 min-h-[1rem]"></p>
+                    <button onclick="setAndToast('motion','fail','الحساس لا يستجيب')" class="w-full bg-neutral-900 border border-rose-500/40 text-rose-300 font-bold py-2 rounded-xl text-xs">القراءات لا تتغير</button>
+                </div>
+
+                <!-- منفذ الشحن -->
+                <div id="card-charge" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-emerald-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-plug-circle-bolt"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">منفذ الشحن</h3><p class="text-[11px] text-neutral-400" id="ch-sub">وصّل الشاحن ونكتشف بدء الشحن تلقائياً</p></div>
+                        <span id="st-charge" class="chip">لم يُفحص</span>
+                    </div>
+                    <button id="ch-btn" onclick="testCharge()" class="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-bolt"></i> ابدأ فحص الشحن</button>
+                    <p id="ch-st" class="text-[11px] text-neutral-400 min-h-[1rem] leading-relaxed"></p>
+                    <div id="ch-manual" class="hidden flex gap-2">
+                        <button onclick="setAndToast('charge','pass','الشحن يعمل (فحص يدوي)')" class="flex-1 bg-neutral-900 border border-emerald-500/40 text-emerald-400 font-bold py-2 rounded-xl text-xs">ظهر رمز الشحن</button>
+                        <button onclick="setAndToast('charge','fail','الجهاز لا يشحن')" class="flex-1 bg-neutral-900 border border-rose-500/40 text-rose-300 font-bold py-2 rounded-xl text-xs">لا يشحن</button>
+                    </div>
+                </div>
+
+                <!-- الفلاش -->
+                <div id="card-flash" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-amber-300 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-lightbulb"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">الفلاش (الكشاف)</h3><p class="text-[11px] text-neutral-400" id="fl-sub">يومض الفلاش 3 مرات</p></div>
+                        <span id="st-flash" class="chip">لم يُفحص</span>
+                    </div>
+                    <button id="fl-btn" onclick="testFlash()" class="w-full bg-amber-500 text-black font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-bolt-lightning"></i> تشغيل الفلاش</button>
+                    <p id="fl-st" class="text-[11px] text-neutral-400 min-h-[1rem] leading-relaxed"></p>
+                    <div class="flex gap-2">
+                        <button onclick="setAndToast('flash','pass','الفلاش يعمل')" class="flex-1 bg-neutral-900 border border-emerald-500/40 text-emerald-400 font-bold py-2 rounded-xl text-xs">أضاء</button>
+                        <button onclick="setAndToast('flash','fail','الفلاش لا يعمل')" class="flex-1 bg-neutral-900 border border-rose-500/40 text-rose-300 font-bold py-2 rounded-xl text-xs">لم يُضئ</button>
+                    </div>
+                </div>
+
+                <!-- GPS -->
+                <div id="card-gps" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-sky-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-location-crosshairs"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">تحديد الموقع (GPS)</h3><p class="text-[11px] text-neutral-400">نقيس الدقة بالأمتار، ولا نحفظ موقعك</p></div>
+                        <span id="st-gps" class="chip">لم يُفحص</span>
+                    </div>
+                    <button onclick="testGps()" class="w-full bg-sky-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-satellite-dish"></i> ابدأ فحص GPS</button>
+                    <p id="gps-st" class="text-[11px] text-neutral-400 min-h-[1rem] leading-relaxed"></p>
+                </div>
+
+                <!-- الأداء والحرارة -->
+                <div id="card-perf" class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-neutral-950 text-rose-400 flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid fa-temperature-arrow-up"></i></div>
+                        <div class="flex-1"><h3 class="font-bold text-sm text-white">الأداء تحت الضغط</h3><p class="text-[11px] text-neutral-400">30 ثانية تشغّل كل أنوية المعالج، ونقيس هل يهبط الأداء مع الحرارة</p></div>
+                        <span id="st-perf" class="chip">لم يُفحص</span>
+                    </div>
+                    <button id="pf-btn" onclick="testPerf()" class="w-full bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-fire"></i> ابدأ اختبار الضغط</button>
+                    <div id="pf-chart" class="hidden h-16 flex items-end gap-[2px] bg-black rounded-xl p-1.5 border border-neutral-800"></div>
+                    <p id="pf-st" class="text-[11px] text-neutral-400 min-h-[1rem] leading-relaxed"></p>
+                </div>
+            </div>
+        </section>
+        <!-- ===== التقرير النهائي ===== -->
+        <section id="section-report" class="space-y-4 tab-content hidden">
+            <div id="report-body" class="space-y-4"></div>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="shareImage()" class="col-span-2 bg-gradient-to-l from-emerald-600 to-teal-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2"><i class="fa-solid fa-image"></i> شهادة الفحص (صورة مع رمز QR)</button>
+                <button onclick="shareReport()" class="bg-neutral-900 border border-neutral-800 text-emerald-400 font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-share-nodes"></i> مشاركة كنص</button>
+                <button onclick="printReport()" class="bg-neutral-900 border border-neutral-800 text-amber-300 font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> حفظ PDF أو طباعة</button>
+                <button onclick="saveHistory()" class="bg-neutral-900 border border-neutral-800 text-sky-300 font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> حفظ في سجل الأجهزة</button>
+                <button onclick="resetAll()" class="bg-neutral-900 border border-neutral-800 text-neutral-200 font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-rotate"></i> فحص جهاز آخر</button>
+            </div>
+            <img id="cert-preview" class="hidden w-full rounded-2xl border border-amber-500/30" alt="شهادة الفحص">
+
+            <div class="glass-panel p-5 rounded-3xl space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                    <h3 class="text-sm font-bold text-white om-title">سجل الأجهزة والمقارنة</h3>
+                    <span class="text-[10px] text-neutral-500">محفوظ في هاتفك فقط</span>
+                </div>
+                <div id="history-list" class="space-y-2"></div>
+            </div>
+
+            <details class="glass-panel p-5 rounded-3xl group">
+                <summary class="cursor-pointer text-sm font-bold text-white flex items-center justify-between"><span class="om-title">كيف نحسب التقييم والسعر؟</span><i class="fa-solid fa-chevron-down text-neutral-500"></i></summary>
+                <div id="explain-body" class="pt-4 space-y-3 text-xs text-neutral-300 leading-relaxed"></div>
+            </details>
+
+            <div class="glass-panel om-hero p-6 rounded-3xl text-center space-y-3 border border-amber-500/30 overflow-hidden">
+                <div class="flag-strip -mx-6 -mt-6 mb-4"></div>
+                <img src="icon-192.png" alt="" class="w-16 h-16 mx-auto rounded-2xl">
+                <h2 class="text-lg font-bold text-white">شكراً لاستخدامك تطبيق نبض الهاتف (XMETA)</h2>
+                <p class="text-xs text-neutral-300 leading-relaxed">سعدنا بمساعدتك في فحص الجهاز قبل شرائه. نتمنى لك صفقة موفقة، ولا تنسَ مقارنة السعر بالسوق قبل الدفع.</p>
+                <p class="text-[11px] text-amber-400/80">نبض الهاتف • ابتكار طلابي من سلطنة عُمان 🇴🇲</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- نافذة سؤال النتيجة -->
+    <div id="ask-modal" class="hidden fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-3xl space-y-4 text-center">
+            <p id="ask-q" class="text-sm text-white leading-relaxed"></p>
+            <div class="flex gap-2">
+                <button id="ask-pass" class="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm"></button>
+                <button id="ask-fail" class="flex-1 bg-rose-500/15 border border-rose-500/40 text-rose-300 font-bold py-3 rounded-xl text-sm"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dead-pixel-overlay" class="full cursor-pointer">
+        <div id="dead-pixel-badge" class="absolute left-1/2 -translate-x-1/2 bg-black/80 px-4 py-2 rounded-full border border-white/20 text-white text-xs pointer-events-none whitespace-nowrap" style="top:calc(env(safe-area-inset-top,0px) + 20px);transition:opacity .4s"></div>
+    </div>
+    <div id="touch-ov" class="full"></div>
+
+    <!-- شريط الفحص الموجّه -->
+    <div id="guide-bar" class="hidden fixed inset-x-0 bottom-0 z-[90] px-3" style="padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px)">
+        <div class="max-w-md mx-auto glass-panel rounded-2xl p-3 shadow-2xl border border-amber-500/40 space-y-2">
+            <div class="flex items-center gap-3">
+                <img src="icon-192.png" alt="" class="w-9 h-9 rounded-xl flex-none">
+                <div class="flex-1 min-w-0"><span id="gb-step" class="block text-[10px] text-amber-300"></span><span id="gb-title" class="block text-sm font-bold text-white truncate"></span></div>
+                <button onclick="guidedNext(true)" class="text-[11px] bg-neutral-900 border border-neutral-700 text-neutral-200 font-bold px-3 py-2 rounded-xl">تخطٍّ</button>
+                <button onclick="stopGuided()" class="text-[11px] bg-neutral-900 border border-neutral-700 text-rose-300 font-bold px-2.5 py-2 rounded-xl" aria-label="إنهاء"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="h-1.5 bg-black rounded-full overflow-hidden"><div id="gb-bar" class="h-full bg-gradient-to-l from-rose-500 to-emerald-500" style="transition:width .3s;width:0"></div></div>
+        </div>
+    </div>
+    <div id="print-area"><img id="print-img" alt=""></div>
+
+    <div id="toast-box" class="fixed left-1/2 -translate-x-1/2 z-[200] hidden" style="top:calc(env(safe-area-inset-top,0px) + 20px)">
+        <div id="toast-inner" class="bg-emerald-600 text-white px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 border border-emerald-400/30 toast-anim">
+            <i class="fa-solid fa-circle-check text-sm"></i><span id="toast-message"></span>
+        </div>
+    </div>
+
+    <script>
+        const $ = id => document.getElementById(id);
+        // البيانات تُحفظ في الذاكرة فقط: عند إغلاق التطبيق تُحذف كلها، وكل فتح جديد يبدأ من الصفر
+        try { Object.keys(localStorage).filter(k => k.indexOf('nabd_') === 0).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+        const MEM = {};
+        const store = {
+            get(k, d) { return Object.prototype.hasOwnProperty.call(MEM, k) ? MEM[k] : d; },
+            set(k, v) { MEM[k] = v; }
+        };
+        window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
+        let lastRange = null;
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        const NOW_YEAR = new Date().getFullYear();
+        const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        /* ===== الشركات والطرازات (الاسم، سنة الإصدار) ===== */
+        const BRANDS = {
+            apple: { name: "أبل (Apple)", phones: [["iPhone Ultra", 2026], ["iPhone 18 Pro Max", 2026], ["iPhone 18 Pro", 2026], ["iPhone 17 Pro Max", 2025], ["iPhone 17 Pro", 2025], ["iPhone Air", 2025], ["iPhone 17", 2025], ["iPhone 16e", 2025], ["iPhone 16 Pro Max", 2024], ["iPhone 16 Pro", 2024], ["iPhone 16 Plus", 2024], ["iPhone 16", 2024], ["iPhone 15 Pro Max", 2023], ["iPhone 15 Pro", 2023], ["iPhone 15 Plus", 2023], ["iPhone 15", 2023], ["iPhone 14 Pro Max", 2022], ["iPhone 14 Pro", 2022], ["iPhone 14 Plus", 2022], ["iPhone 14", 2022], ["iPhone SE (2022)", 2022], ["iPhone 13 Pro Max", 2021], ["iPhone 13 Pro", 2021], ["iPhone 13", 2021], ["iPhone 13 mini", 2021], ["iPhone 12 Pro Max", 2020], ["iPhone 12 Pro", 2020], ["iPhone 12", 2020], ["iPhone 12 mini", 2020], ["iPhone SE (2020)", 2020], ["iPhone 11 Pro Max", 2019], ["iPhone 11 Pro", 2019], ["iPhone 11", 2019], ["iPhone XS Max", 2018], ["iPhone XS", 2018], ["iPhone XR", 2018], ["iPhone X", 2017], ["iPhone 8 Plus", 2017], ["iPhone 8", 2017], ["iPhone 7 Plus", 2016], ["iPhone 7", 2016]], tablets: [["iPad Pro 13 (M5)", 2025], ["iPad Pro 11 (M5)", 2025], ["iPad Air 13 (M3)", 2025], ["iPad Air 11 (M3)", 2025], ["iPad (A16)", 2025], ["iPad mini (A17 Pro)", 2024], ["iPad Pro 13 (M4)", 2024], ["iPad Pro 11 (M4)", 2024], ["iPad Air 13 (M2)", 2024], ["iPad Air 11 (M2)", 2024], ["iPad (10th gen)", 2022], ["iPad Pro 12.9 (M2)", 2022], ["iPad Pro 11 (M2)", 2022], ["iPad Air (5th gen)", 2022], ["iPad mini (6th gen)", 2021], ["iPad (9th gen)", 2021], ["iPad Pro 12.9 (M1)", 2021], ["iPad Pro 11 (M1)", 2021], ["iPad Air (4th gen)", 2020], ["iPad (8th gen)", 2020]] },
+            samsung: { name: "سامسونج (Samsung)", phones: [["Galaxy Z Fold8", 2026], ["Galaxy Z Flip8", 2026], ["Galaxy S26 Ultra", 2026], ["Galaxy S26+", 2026], ["Galaxy S26", 2026], ["Galaxy A57", 2026], ["Galaxy A37", 2026], ["Galaxy A27", 2026], ["Galaxy A17", 2025], ["Galaxy A07", 2025], ["Galaxy Z TriFold", 2025], ["Galaxy Z Fold7", 2025], ["Galaxy Z Flip7", 2025], ["Galaxy Z Flip7 FE", 2025], ["Galaxy S25 Ultra", 2025], ["Galaxy S25+", 2025], ["Galaxy S25", 2025], ["Galaxy S25 Edge", 2025], ["Galaxy S25 FE", 2025], ["Galaxy A56", 2025], ["Galaxy A36", 2025], ["Galaxy A26", 2025], ["Galaxy A16", 2024], ["Galaxy A06", 2024], ["Galaxy Z Fold6", 2024], ["Galaxy Z Flip6", 2024], ["Galaxy S24 Ultra", 2024], ["Galaxy S24+", 2024], ["Galaxy S24", 2024], ["Galaxy S24 FE", 2024], ["Galaxy A55", 2024], ["Galaxy A35", 2024], ["Galaxy A25", 2023], ["Galaxy A15", 2023], ["Galaxy A05s", 2023], ["Galaxy Z Fold5", 2023], ["Galaxy Z Flip5", 2023], ["Galaxy S23 Ultra", 2023], ["Galaxy S23+", 2023], ["Galaxy S23", 2023], ["Galaxy S23 FE", 2023], ["Galaxy A54", 2023], ["Galaxy A34", 2023], ["Galaxy A24", 2023], ["Galaxy A14", 2023], ["Galaxy S22 Ultra", 2022], ["Galaxy S22+", 2022], ["Galaxy S22", 2022], ["Galaxy Z Fold4", 2022], ["Galaxy Z Flip4", 2022], ["Galaxy A53", 2022], ["Galaxy A33", 2022], ["Galaxy A23", 2022], ["Galaxy A13", 2022], ["Galaxy S21 Ultra", 2021], ["Galaxy S21", 2021], ["Galaxy S21 FE", 2022], ["Galaxy Note20 Ultra", 2020]], tablets: [["Galaxy Tab S11 Ultra", 2025], ["Galaxy Tab S11", 2025], ["Galaxy Tab S10 FE+", 2025], ["Galaxy Tab S10 FE", 2025], ["Galaxy Tab A11+", 2025], ["Galaxy Tab A11", 2025], ["Galaxy Tab S10 Ultra", 2024], ["Galaxy Tab S10+", 2024], ["Galaxy Tab S9 Ultra", 2023], ["Galaxy Tab S9+", 2023], ["Galaxy Tab S9", 2023], ["Galaxy Tab S9 FE+", 2023], ["Galaxy Tab S9 FE", 2023], ["Galaxy Tab A9+", 2023], ["Galaxy Tab A9", 2023], ["Galaxy Tab S8 Ultra", 2022], ["Galaxy Tab S8+", 2022], ["Galaxy Tab S8", 2022], ["Galaxy Tab A8", 2022], ["Galaxy Tab S7 FE", 2021]] },
+            google: { name: "جوجل بكسل (Google Pixel)", phones: [["Pixel 11 Pro XL", 2026], ["Pixel 11 Pro", 2026], ["Pixel 11", 2026], ["Pixel 11 Pro Fold", 2026], ["Pixel 10a", 2026], ["Pixel 10 Pro XL", 2025], ["Pixel 10 Pro", 2025], ["Pixel 10", 2025], ["Pixel 10 Pro Fold", 2025], ["Pixel 9a", 2025], ["Pixel 9 Pro XL", 2024], ["Pixel 9 Pro", 2024], ["Pixel 9", 2024], ["Pixel 9 Pro Fold", 2024], ["Pixel 8a", 2024], ["Pixel 8 Pro", 2023], ["Pixel 8", 2023], ["Pixel Fold", 2023], ["Pixel 7a", 2023], ["Pixel 7 Pro", 2022], ["Pixel 7", 2022], ["Pixel 6a", 2022], ["Pixel 6 Pro", 2021], ["Pixel 6", 2021]], tablets: [["Pixel Tablet", 2023]] },
+            xiaomi: { name: "شاومي (Xiaomi)", phones: [["Xiaomi 17 Ultra", 2026], ["Xiaomi 17 Pro Max", 2025], ["Xiaomi 17 Pro", 2025], ["Xiaomi 17", 2025], ["Xiaomi 15T Pro", 2025], ["Xiaomi 15T", 2025], ["Xiaomi 15 Ultra", 2025], ["Xiaomi 15", 2025], ["Xiaomi Mix Flip 2", 2025], ["Xiaomi 14T Pro", 2024], ["Xiaomi 14T", 2024], ["Xiaomi 14 Ultra", 2024], ["Xiaomi 14", 2024], ["Xiaomi Mix Flip", 2024], ["Xiaomi 13T Pro", 2023], ["Xiaomi 13T", 2023], ["Xiaomi 13 Ultra", 2023], ["Xiaomi 13 Pro", 2023], ["Xiaomi 13", 2023], ["Xiaomi 13 Lite", 2023], ["Xiaomi 12T Pro", 2022], ["Xiaomi 12T", 2022], ["Xiaomi 12", 2022]], tablets: [["Xiaomi Pad 7 Pro", 2025], ["Xiaomi Pad 7", 2025], ["Xiaomi Pad Mini", 2025], ["Xiaomi Pad 6S Pro", 2024], ["Xiaomi Pad 6", 2023], ["Xiaomi Pad 5", 2021]] },
+            redmi: { name: "ريدمي (Redmi)", phones: [["Redmi Note 15 Pro+ 5G", 2026], ["Redmi Note 15 Pro 5G", 2026], ["Redmi Note 15 Pro", 2026], ["Redmi Note 15", 2026], ["Redmi 15C", 2025], ["Redmi 15", 2025], ["Redmi A5", 2025], ["Redmi Note 14 Pro+ 5G", 2025], ["Redmi Note 14 Pro 5G", 2025], ["Redmi Note 14 Pro", 2025], ["Redmi Note 14", 2025], ["Redmi 14C", 2024], ["Redmi 13", 2024], ["Redmi A3", 2024], ["Redmi Note 13 Pro+ 5G", 2024], ["Redmi Note 13 Pro 5G", 2024], ["Redmi Note 13 Pro", 2024], ["Redmi Note 13", 2024], ["Redmi 13C", 2023], ["Redmi Note 12 Pro+ 5G", 2023], ["Redmi Note 12 Pro", 2023], ["Redmi Note 12", 2023], ["Redmi 12", 2023], ["Redmi A2", 2023], ["Redmi Note 11 Pro", 2022], ["Redmi Note 11", 2022], ["Redmi 10", 2021]], tablets: [["Redmi Pad 2 Pro", 2025], ["Redmi Pad 2", 2025], ["Redmi Pad Pro", 2024], ["Redmi Pad SE 8.7", 2024], ["Redmi Pad SE", 2023], ["Redmi Pad", 2022]] },
+            poco: { name: "بوكو (POCO)", phones: [["POCO F8 Ultra", 2025], ["POCO F8 Pro", 2025], ["POCO F7 Ultra", 2025], ["POCO F7 Pro", 2025], ["POCO F7", 2025], ["POCO X7 Pro", 2025], ["POCO X7", 2025], ["POCO M7 Pro", 2024], ["POCO M7", 2025], ["POCO C85", 2025], ["POCO C75", 2024], ["POCO F6 Pro", 2024], ["POCO F6", 2024], ["POCO X6 Pro", 2024], ["POCO X6", 2024], ["POCO M6 Pro", 2024], ["POCO C65", 2023], ["POCO F5 Pro", 2023], ["POCO F5", 2023], ["POCO X5 Pro", 2023], ["POCO X5", 2023]], tablets: [["POCO Pad", 2024]] },
+            huawei: { name: "هواوي (Huawei)", phones: [["Mate 80 Pro", 2025], ["Mate 80", 2025], ["Mate X7", 2025], ["Mate XTs", 2025], ["Pura 80 Ultra", 2025], ["Pura 80 Pro", 2025], ["Pura 80", 2025], ["nova 14 Pro", 2025], ["nova 14", 2025], ["nova 13 Pro", 2024], ["nova 13", 2024], ["nova 13i", 2024], ["nova Y73", 2025], ["nova Y72", 2024], ["Mate X6", 2024], ["Mate XT", 2024], ["Pura 70 Ultra", 2024], ["Pura 70 Pro", 2024], ["Pura 70", 2024], ["nova 12i", 2024], ["nova 12 SE", 2024], ["Mate 60 Pro", 2023], ["P60 Pro", 2023], ["nova 11 Pro", 2023], ["nova 11i", 2023], ["nova Y91", 2023], ["P50 Pro", 2022]], tablets: [["MatePad Pro 13.2 (2025)", 2025], ["MatePad Pro 12.2", 2025], ["MatePad 11.5 (2025)", 2025], ["MatePad Air (2025)", 2025], ["MatePad SE 11 (2025)", 2025], ["MatePad Pro 13.2", 2024], ["MatePad 11.5 S", 2024], ["MatePad Air", 2024], ["MatePad SE 11", 2024], ["MatePad 11.5", 2023], ["MatePad Pro 11", 2022]] },
+            honor: { name: "هونر (Honor)", phones: [["Magic8 Pro", 2025], ["Magic8 Lite", 2025], ["Magic V5", 2025], ["Honor 400 Pro", 2025], ["Honor 400", 2025], ["Honor 400 Lite", 2025], ["Honor X9d", 2025], ["Honor X8c", 2024], ["Honor X7d", 2025], ["Magic7 Pro", 2025], ["Magic7 Lite", 2025], ["Magic V3", 2024], ["Magic6 Pro", 2024], ["Honor 200 Pro", 2024], ["Honor 200", 2024], ["Honor 200 Lite", 2024], ["Honor X9c", 2024], ["Honor X9b", 2024], ["Honor X7c", 2024], ["Honor X6b", 2024], ["Honor 90", 2023], ["Honor X9a", 2023], ["Honor X8a", 2023], ["Magic5 Pro", 2023]], tablets: [["MagicPad 3", 2025], ["Honor Pad 10", 2025], ["Honor Pad X9a", 2025], ["MagicPad 2", 2024], ["Honor Pad 9", 2024], ["Honor Pad X8a", 2024], ["Honor Pad X9", 2023], ["Honor Pad 8", 2022]] },
+            oppo: { name: "أوبو (Oppo)", phones: [["Reno15 Pro", 2026], ["Reno15", 2026], ["Find X9 Pro", 2025], ["Find X9", 2025], ["Find N5", 2025], ["Reno14 Pro", 2025], ["Reno14", 2025], ["Reno14 F", 2025], ["Reno13 Pro", 2025], ["Reno13", 2025], ["Reno13 F", 2025], ["A6 Pro", 2025], ["A5 Pro", 2025], ["A5", 2025], ["Find X8 Pro", 2024], ["Find X8", 2024], ["Reno12 Pro", 2024], ["Reno12", 2024], ["Reno12 F", 2024], ["A3 Pro", 2024], ["A3", 2024], ["A3x", 2024], ["A60", 2024], ["A80", 2024], ["Reno11 Pro", 2024], ["Reno11", 2024], ["Reno11 F", 2024], ["A79", 2023], ["A58", 2023], ["A38", 2023], ["A18", 2023], ["Reno10 Pro", 2023], ["Find N3", 2023]], tablets: [["OPPO Pad 3 Pro", 2025], ["OPPO Pad 3", 2025], ["OPPO Pad SE", 2025], ["OPPO Pad Neo", 2024], ["OPPO Pad 2", 2023], ["OPPO Pad Air", 2022]] },
+            realme: { name: "ريلمي (Realme)", phones: [["GT 8 Pro", 2025], ["GT 7", 2025], ["GT 7T", 2025], ["realme 15 Pro", 2025], ["realme 15", 2025], ["realme 14 Pro+", 2025], ["realme 14 Pro", 2025], ["realme 14", 2025], ["C85", 2025], ["C75", 2024], ["C71", 2025], ["C61", 2024], ["GT 7 Pro", 2024], ["GT 6", 2024], ["realme 13 Pro+", 2024], ["realme 13 Pro", 2024], ["realme 13", 2024], ["realme 12 Pro+", 2024], ["realme 12 Pro", 2024], ["realme 12", 2024], ["C67", 2023], ["C65", 2024], ["C55", 2023], ["Note 60", 2024], ["Note 50", 2024], ["realme 11 Pro+", 2023], ["realme 11", 2023]], tablets: [["realme Pad 2", 2023], ["realme Pad 2 Lite", 2024], ["realme Pad mini", 2022]] },
+            vivo: { name: "فيفو (Vivo)", phones: [["X300 Pro", 2025], ["X300", 2025], ["X Fold5", 2025], ["X200 FE", 2025], ["V60", 2025], ["V60 Lite", 2025], ["V50", 2025], ["V50 Lite", 2025], ["Y400", 2025], ["Y39", 2024], ["Y29", 2024], ["Y19s", 2024], ["Y18", 2024], ["Y04", 2025], ["X200 Pro", 2024], ["X200", 2024], ["X100 Pro", 2024], ["X100", 2023], ["V40", 2024], ["V40 Lite", 2024], ["V30", 2024], ["Y28", 2024], ["Y17s", 2023], ["V29", 2023], ["Y36", 2023], ["Y27", 2023]], tablets: [["vivo Pad5", 2025], ["vivo Pad3 Pro", 2024], ["vivo Pad3", 2024], ["vivo Pad Air", 2023], ["vivo Pad2", 2023]] },
+            oneplus: { name: "ون بلس (OnePlus)", phones: [["OnePlus 15", 2025], ["OnePlus 15R", 2025], ["OnePlus 13", 2025], ["OnePlus 13R", 2025], ["OnePlus 13s", 2025], ["Nord 5", 2025], ["Nord CE5", 2025], ["OnePlus 12", 2024], ["OnePlus 12R", 2024], ["Nord 4", 2024], ["Nord CE4", 2024], ["Nord CE4 Lite", 2024], ["OnePlus Open", 2023], ["OnePlus 11", 2023], ["Nord 3", 2023], ["Nord CE3 Lite", 2023], ["OnePlus 10 Pro", 2022]], tablets: [["OnePlus Pad 3", 2025], ["OnePlus Pad Lite", 2025], ["OnePlus Pad 2", 2024], ["OnePlus Pad Go", 2023], ["OnePlus Pad", 2023]] },
+            other: { name: 'شركة أخرى', phones: [], tablets: [] }
+        };
+        Object.keys(BRANDS).forEach(k => { BRANDS[k].models = BRANDS[k].phones.concat(BRANDS[k].tablets); });
+        const SAMSUNG_CODES = { 'SM-S948': 'Galaxy S26 Ultra', 'SM-S947': 'Galaxy S26+', 'SM-S942': 'Galaxy S26', 'SM-F971': 'Galaxy Z Fold8', 'SM-F771': 'Galaxy Z Flip8', 'SM-S938': 'Galaxy S25 Ultra', 'SM-S936': 'Galaxy S25+', 'SM-S931': 'Galaxy S25', 'SM-S937': 'Galaxy S25 Edge', 'SM-S731': 'Galaxy S25 FE', 'SM-S928': 'Galaxy S24 Ultra', 'SM-S926': 'Galaxy S24+', 'SM-S921': 'Galaxy S24', 'SM-S721': 'Galaxy S24 FE', 'SM-S918': 'Galaxy S23 Ultra', 'SM-S916': 'Galaxy S23+', 'SM-S911': 'Galaxy S23', 'SM-S711': 'Galaxy S23 FE', 'SM-S908': 'Galaxy S22 Ultra', 'SM-S906': 'Galaxy S22+', 'SM-S901': 'Galaxy S22', 'SM-F966': 'Galaxy Z Fold7', 'SM-F766': 'Galaxy Z Flip7', 'SM-F956': 'Galaxy Z Fold6', 'SM-F741': 'Galaxy Z Flip6', 'SM-F946': 'Galaxy Z Fold5', 'SM-F731': 'Galaxy Z Flip5', 'SM-A566': 'Galaxy A56', 'SM-A366': 'Galaxy A36', 'SM-A266': 'Galaxy A26', 'SM-A165': 'Galaxy A16', 'SM-A166': 'Galaxy A16', 'SM-A065': 'Galaxy A06', 'SM-A556': 'Galaxy A55', 'SM-A356': 'Galaxy A35', 'SM-A256': 'Galaxy A25', 'SM-A155': 'Galaxy A15', 'SM-A156': 'Galaxy A15', 'SM-A546': 'Galaxy A54', 'SM-A346': 'Galaxy A34' };
+        // [عرض الشاشة، الارتفاع، كثافة البكسل، الطرازات المطابقة]
+        const IPHONE_SCREENS = [
+            [375, 667, 2, ['iPhone SE (2022)', 'iPhone SE (2020)', 'iPhone 8']],
+            [414, 736, 3, ['iPhone 8 Plus']],
+            [375, 812, 3, ['iPhone 13 mini', 'iPhone 12 mini', 'iPhone 11 Pro', 'iPhone XS', 'iPhone X']],
+            [414, 896, 2, ['iPhone 11', 'iPhone XR']],
+            [414, 896, 3, ['iPhone 11 Pro Max', 'iPhone XS Max']],
+            [390, 844, 3, ['iPhone 16e', 'iPhone 14', 'iPhone 13 Pro', 'iPhone 13', 'iPhone 12 Pro', 'iPhone 12']],
+            [428, 926, 3, ['iPhone 14 Plus', 'iPhone 13 Pro Max', 'iPhone 12 Pro Max']],
+            [393, 852, 3, ['iPhone 16', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 14 Pro']],
+            [430, 932, 3, ['iPhone 16 Plus', 'iPhone 15 Pro Max', 'iPhone 15 Plus', 'iPhone 14 Pro Max']],
+            [402, 874, 3, ['iPhone 18 Pro', 'iPhone 17 Pro', 'iPhone 17', 'iPhone 16 Pro']],
+            [420, 912, 3, ['iPhone Air']],
+            [440, 956, 3, ['iPhone 18 Pro Max', 'iPhone 17 Pro Max', 'iPhone 16 Pro Max']]
+        ];
+
+        /* ===== قوائم الفحص المخفية ===== */
+        const CODES = [
+            { group: 'apple', name: 'أبل (آيفون)', icon: 'fa-apple', brandsIcon: true, items: [
+                ['', 'لا توجد أكواد لفحص العتاد في الآيفون. الفحص الرسمي للقطع من: الإعدادات ← عام ← حول ← سجل القطع والخدمة (يظهر عند تبديل أي قطعة).'],
+                ['', 'الإعدادات ← البطارية ← صحة البطارية: السعة القصوى، وعدد دورات الشحن في الأجهزة الحديثة.'],
+                ['*3001#12345#*', 'وضع الاختبار الميداني: قوة الإشارة ومعلومات الشبكة.'],
+                ['*#06#', 'رقم IMEI للمطابقة مع العلبة.']] },
+            { group: 'samsung', name: 'سامسونج', items: [
+                ['*#0*#', 'قائمة فحص العتاد: ألوان الشاشة، اللمس، السماعات، الاهتزاز، الكاميرا، الحساسات.'],
+                ['*#7353#', 'قائمة الفحص السريع في بعض الأجهزة الأقدم.'],
+                ['', 'تطبيق Samsung Members ← الدعم ← تشخيص الهاتف: فحص رسمي شامل يشمل البطارية.'],
+                ['*#06#', 'رقم IMEI.']] },
+            { group: 'google', name: 'جوجل بكسل', items: [
+                ['*#*#7287#*#*', 'أداة تشخيص بكسل الرسمية في الأجهزة الحديثة.'],
+                ['*#*#4636#*#*', 'معلومات الهاتف والشبكة.'],
+                ['', 'الإعدادات ← البطارية ← صحة البطارية (بكسل 8a فما بعد).']] },
+            { group: 'xiaomi', name: 'شاومي وريدمي وبوكو', items: [
+                ['*#*#6484#*#*', 'قائمة CIT لفحص كل العتاد: الشاشة، اللمس، الحساسات، السماعات، الكاميرا، الاهتزاز.'],
+                ['', 'طريقة بديلة: الإعدادات ← حول الهاتف ← المواصفات ← اضغط "إصدار النواة" 5 مرات.'],
+                ['*#*#4636#*#*', 'معلومات الهاتف والبطارية والشبكة.']] },
+            { group: 'huawei', name: 'هواوي', items: [
+                ['*#*#2846579#*#*', 'قائمة المشروع (ProjectMenu) للمعلومات الفنية في كثير من الأجهزة.'],
+                ['', 'تطبيق الدعم (HUAWEI Support أو My HUAWEI) ← التشخيص الذكي: فحص رسمي للعتاد والبطارية.']] },
+            { group: 'honor', name: 'هونر', items: [
+                ['*#*#2846579#*#*', 'قائمة المشروع للمعلومات الفنية في كثير من الأجهزة.'],
+                ['', 'تطبيق My HONOR ← الخدمات ← التشخيص الذكي (حسب الإصدار).']] },
+            { group: 'oppo', name: 'أوبو وريلمي', items: [
+                ['*#899#', 'الوضع الهندسي والفحص اليدوي للعتاد.'],
+                ['*#800#', 'قائمة الملاحظات والسجلات الفنية.'],
+                ['*#*#4636#*#*', 'معلومات الهاتف والشبكة.']] },
+            { group: 'vivo', name: 'فيفو', items: [
+                ['*#558#', 'الفحص السريع والوضع الهندسي للعتاد.'],
+                ['*#*#4636#*#*', 'معلومات الهاتف والشبكة.']] },
+            { group: 'oneplus', name: 'ون بلس', items: [
+                ['*#899#', 'الوضع الهندسي في الأجهزة الحديثة.'],
+                ['*#808#', 'قائمة فحص العتاد في الأجهزة الأقدم.'],
+                ['*#*#4636#*#*', 'معلومات الهاتف والشبكة.']] },
+            { group: 'other', name: 'أي جهاز أندرويد', items: [
+                ['*#*#4636#*#*', 'معلومات الهاتف والشبكة، وأحياناً البطارية، في أغلب أجهزة أندرويد.'],
+                ['*#06#', 'رقم IMEI.']] }
+        ];
+        const codeGroup = b => ({ redmi: 'xiaomi', poco: 'xiaomi', realme: 'oppo' }[b] || (BRANDS[b] ? b : 'other'));
+        const BAT_PATH = {
+            apple: 'الإعدادات ← البطارية ← صحة البطارية ← السعة القصوى.',
+            samsung: 'تطبيق Samsung Members ← الدعم ← تشخيص الهاتف ← حالة البطارية.',
+            google: 'الإعدادات ← البطارية ← صحة البطارية (بكسل 8a فما بعد).',
+            xiaomi: 'الإعدادات ← البطارية (تظهر صحة البطارية في بعض الإصدارات)، أو قائمة CIT بالكود *#*#6484#*#*.',
+            huawei: 'تطبيق الدعم ← التشخيص الذكي ← البطارية.',
+            honor: 'تطبيق My HONOR ← التشخيص الذكي ← البطارية.'
+        };
+        const BAT_DEFAULT = 'الإعدادات ← البطارية ← صحة البطارية (إن كانت متاحة في إصدار نظامك)، أو تطبيق الدعم الرسمي للشركة.';
+
+        const TESTS = [
+            { id: 'screen',    icon: 'fa-tv',                     color: 'text-emerald-400', tab: 'screen',  title: 'الشاشة والبكسل الميت', desc: 'ثماني شاشات ألوان واحتراق', weight: 14 },
+            { id: 'touch',     icon: 'fa-hand-pointer',           color: 'text-sky-400',     tab: 'screen',  title: 'شاشة اللمس',           desc: 'كشف المناطق الميتة', weight: 14 },
+            { id: 'camera',    icon: 'fa-camera',                 color: 'text-cyan-400',    tab: 'camera',  title: 'الكاميرات',            desc: 'الخلفية والأمامية مع تحليل الوضوح', weight: 12 },
+            { id: 'battery',   icon: 'fa-battery-three-quarters', color: 'text-amber-400',   tab: 'sensors', title: 'صحة البطارية',         desc: 'من إعدادات الهاتف', weight: 14 },
+            { id: 'charge',    icon: 'fa-plug-circle-bolt',       color: 'text-emerald-400', tab: 'sensors', title: 'منفذ الشحن',           desc: 'كشف بدء الشحن تلقائياً', weight: 8 },
+            { id: 'speaker',   icon: 'fa-volume-high',            color: 'text-blue-400',    tab: 'sensors', title: 'السماعات',             desc: 'آلي أو يمين ويسار', weight: 8, card: 'audio' },
+            { id: 'mic',       icon: 'fa-microphone',             color: 'text-pink-400',    tab: 'sensors', title: 'المايكروفون',          desc: 'آلي أو مؤشر صوت حي', weight: 8, card: 'audio' },
+            { id: 'motion',    icon: 'fa-compass-drafting',       color: 'text-amber-400',   tab: 'sensors', title: 'حساس الحركة',          desc: 'قراءات الميلان الحية', weight: 5 },
+            { id: 'vibration', icon: 'fa-mobile-screen',          color: 'text-purple-400',  tab: 'sensors', title: 'محرك الاهتزاز',        desc: 'إحساس واضح', weight: 4 },
+            { id: 'flash',     icon: 'fa-lightbulb',              color: 'text-amber-300',   tab: 'sensors', title: 'الفلاش',               desc: 'وميض الكشاف', weight: 3 },
+            { id: 'gps',       icon: 'fa-location-crosshairs',    color: 'text-sky-400',     tab: 'sensors', title: 'تحديد الموقع GPS',     desc: 'الدقة بالأمتار', weight: 3 },
+            { id: 'perf',      icon: 'fa-temperature-arrow-up',   color: 'text-rose-400',    tab: 'sensors', title: 'الأداء والحرارة',      desc: 'اختبار ضغط 30 ثانية', weight: 4 },
+            { id: 'buttons',   icon: 'fa-toggle-on',              color: 'text-amber-400',   tab: 'guide',   title: 'الأزرار والمنافذ',     desc: 'فحص يدوي موجَّه', weight: 8 },
+            { id: 'imei',      icon: 'fa-barcode',                color: 'text-sky-400',     tab: 'guide',   title: 'رقم IMEI',             desc: 'التحقق بخوارزمية لون', weight: 6 },
+            { id: 'parts',     icon: 'fa-shield-halved',          color: 'text-amber-400',   tab: 'guide',   title: 'القطع المبدولة',       desc: 'أسئلة من الإعدادات', weight: 6 }
+        ];
+        let results = store.get('nabd_results', {});
+        let battery = store.get('nabd_battery', null);
+        let device = store.get('nabd_device', null) || { brand: '', model: '', year: null, storage: '' };
+        let detected = { brand: '', model: '', code: '', candidates: [], desktop: false };
+
+        /* ===== عام ===== */
+        function showToast(msg, bad) {
+            $('toast-message').innerText = msg;
+            $('toast-inner').className = (bad ? 'bg-rose-600 border-rose-400/30' : 'bg-emerald-600 border-emerald-400/30') + ' text-white px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 border toast-anim';
+            const t = $('toast-box'); t.classList.remove('hidden');
+            clearTimeout(t._t); t._t = setTimeout(() => t.classList.add('hidden'), 2600);
+        }
+        function switchTab(tabId) {
+            ['scan', 'guide', 'camera', 'specs', 'market', 'screen', 'sensors', 'report'].forEach(t => {
+                $('section-' + t).classList.toggle('hidden', t !== tabId);
+                const b = $('tab-btn-' + t); const on = t === tabId;
+                b.classList.toggle('bg-emerald-600', on); b.classList.toggle('text-white', on);
+                b.classList.toggle('shadow-lg', on); b.classList.toggle('shadow-emerald-600/30', on);
+                b.classList.toggle('text-neutral-400', !on && t !== 'guide');
+                b.classList.toggle('text-amber-400', !on && t === 'guide');
+                b.setAttribute('aria-selected', on);
+            });
+            if (tabId !== 'camera') stopCam();
+            if (tabId !== 'sensors') { stopMic(); stopFlash(); }
+            if (tabId === 'report') { renderReport(); renderHistory(); }
+            window.scrollTo(0, 0);
+        }
+        function setResult(id, status, note) {
+            results[id] = { status: status, note: note || '' };
+            store.set('nabd_results', results);
+            renderAll();
+            if (guided && TESTS[guided.i] && TESTS[guided.i].id === id) { const at = guided.i; setTimeout(() => { if (guided && guided.i === at) guidedNext(); }, 1100); }
+        }
+        function setAndToast(id, status, note) {
+            setResult(id, status, note);
+            showToast(status === 'pass' ? 'سُجّلت النتيجة: سليم' : 'سُجّلت النتيجة: يوجد خلل', status !== 'pass');
+        }
+        function ask(id, q, passLabel, failLabel, passNote, failNote) {
+            $('ask-q').innerText = q; $('ask-pass').innerText = passLabel; $('ask-fail').innerText = failLabel;
+            $('ask-modal').classList.remove('hidden');
+            $('ask-pass').onclick = () => { $('ask-modal').classList.add('hidden'); setAndToast(id, 'pass', passNote); };
+            $('ask-fail').onclick = () => { $('ask-modal').classList.add('hidden'); setAndToast(id, 'fail', failNote); };
+        }
+        function goFull(el) { try { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch (e) {} }
+        function exitFull() { try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} }
+        async function copyText(t) {
+            try { await navigator.clipboard.writeText(t); return true; }
+            catch (e) {
+                const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0';
+                document.body.appendChild(a); a.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (x) {}
+                a.remove(); return ok;
+            }
+        }
+
+        /* ===== التعرف على الجهاز ===== */
+        async function detectDevice() {
+            const ua = navigator.userAgent;
+            if (isIOS) {
+                detected.brand = 'apple';
+                if (/iPhone/.test(ua)) {
+                    const w = Math.min(screen.width, screen.height), h = Math.max(screen.width, screen.height), d = Math.round(window.devicePixelRatio || 1);
+                    const m = IPHONE_SCREENS.find(s => s[0] === w && s[1] === h && s[2] === d);
+                    if (m) detected.candidates = m[3];
+                    if (detected.candidates.length === 1) detected.model = detected.candidates[0];
+                }
+                return;
+            }
+            if (!isAndroid) { detected.desktop = true; return; }
+            let code = '';
+            const md = ua.match(/Android [\d.]+; ([^;)]+)/);
+            if (md && md[1].trim() !== 'K') code = md[1].replace(/Build\/.*/, '').trim();
+            if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+                try { const hv = await navigator.userAgentData.getHighEntropyValues(['model']); if (hv.model) code = hv.model; } catch (e) {}
+            }
+            detected.code = code;
+            if (!code) return;
+            if (/^SM-/i.test(code)) {
+                detected.brand = 'samsung';
+                const name = SAMSUNG_CODES[code.toUpperCase().slice(0, 7)];
+                if (name) detected.model = name;
+            } else if (/pixel/i.test(code)) {
+                detected.brand = 'google';
+                const hit = BRANDS.google.models.find(m => m[0].toLowerCase() === code.toLowerCase());
+                detected.model = hit ? hit[0] : code;
+            } else if (/redmi/i.test(code)) detected.brand = 'redmi';
+            else if (/poco/i.test(code)) detected.brand = 'poco';
+            else if (/xiaomi|^mi /i.test(code) || /^\d{4,5}[A-Z0-9]{3,}$/i.test(code)) detected.brand = 'xiaomi';
+            else if (/^RMX/i.test(code)) detected.brand = 'realme';
+            else if (/oneplus/i.test(code)) detected.brand = 'oneplus';
+            else if (/^CPH/i.test(code)) detected.brand = 'oppo';
+            else if (/^V\d{4}/i.test(code)) detected.brand = 'vivo';
+            else if (/^[A-Z]{3}-[A-Z]{1,3}\d/i.test(code)) detected.brand = 'huawei';
+        }
+        function detectMessage() {
+            if (detected.desktop) return 'يبدو أنك تستخدم حاسوباً. افتح التطبيق على الهاتف الذي تريد فحصه ليتعرف عليه.';
+            if (detected.brand === 'apple') {
+                if (detected.candidates.length === 1) return `<i class="fa-solid fa-circle-check"></i> تعرّفنا تلقائياً على جهازك: <strong>${detected.candidates[0]}</strong>`;
+                if (detected.candidates.length) return `<i class="fa-solid fa-circle-check"></i> جهازك آيفون، وحجم شاشته يطابق: <strong>${detected.candidates.join(' أو ')}</strong>. أبل لا تسمح بمعرفة الطراز الدقيق، فاختره من القائمة أو من الإعدادات ← عام ← حول.`;
+                return '<i class="fa-solid fa-circle-check"></i> جهازك من أبل. اختر الطراز من القائمة أو من الإعدادات ← عام ← حول.';
+            }
+            if (detected.model) return `<i class="fa-solid fa-circle-check"></i> تعرّفنا تلقائياً على جهازك: <strong>${esc(BRANDS[detected.brand].name)} ${esc(detected.model)}</strong>${detected.code ? ` (${esc(detected.code)})` : ''}`;
+            if (detected.code) return `<i class="fa-solid fa-circle-info"></i> رمز طراز جهازك: <strong>${esc(detected.code)}</strong>${detected.brand ? `، والشركة المتوقعة: <strong>${esc(BRANDS[detected.brand].name)}</strong>` : ''}. اختر الاسم التجاري من القائمة.`;
+            return 'لم يسمح المتصفح بالتعرف على الجهاز تلقائياً. اختر الشركة والطراز من القوائم.';
+        }
+        function findYear(brand, model) {
+            const b = BRANDS[brand]; if (!b) return null;
+            const hit = b.models.find(m => m[0] === model);
+            return hit ? hit[1] : null;
+        }
+
+        /* ===== نافذة اختيار الجهاز ===== */
+        function openDeviceModal() {
+            $('m-brand').innerHTML = '<option value="">اختر الشركة</option>' + Object.keys(BRANDS).map(k => `<option value="${k}">${BRANDS[k].name}</option>`).join('');
+            $('m-brand').value = device.brand || detected.brand || '';
+            fillModels(device.model || detected.model || '');
+            $('m-storage').value = device.storage || '';
+            const box = $('detect-box'); box.innerHTML = detectMessage(); box.classList.remove('hidden');
+            $('device-modal').classList.remove('hidden');
+        }
+        function fillModels(pre) {
+            const b = $('m-brand').value, sel = $('m-model-sel');
+            let html = '';
+            if (b && b !== 'other') {
+                html += '<option value="">اختر الطراز</option>';
+                const cands = detected.brand === b ? detected.candidates : [];
+                if (cands.length > 1) html += `<optgroup label="مطابق لشاشة جهازك">${cands.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>`;
+                const opt = list => list.map(m => `<option value="${m[0]}">${m[0]}</option>`).join('');
+                if (BRANDS[b].phones.length) html += `<optgroup label="الهواتف">${opt(BRANDS[b].phones)}</optgroup>`;
+                if (BRANDS[b].tablets.length) html += `<optgroup label="الأجهزة اللوحية">${opt(BRANDS[b].tablets)}</optgroup>`;
+            }
+            html += '<option value="__other">طراز آخر (اكتبه بنفسك)</option>';
+            sel.innerHTML = html;
+            if (typeof pre === 'string' && pre) {
+                if ([...sel.options].some(o => o.value === pre)) sel.value = pre;
+                else { sel.value = '__other'; $('m-model').value = pre; }
+            } else if (!b || b === 'other') sel.value = '__other';
+            toggleCustom();
+        }
+        function toggleCustom() {
+            const other = $('m-model-sel').value === '__other';
+            $('m-custom-wrap').classList.toggle('hidden', !other);
+            if (other && !$('m-model').value && detected.code && $('m-brand').value === detected.brand) $('m-model').value = detected.code;
+        }
+        function closeDeviceModal() { $('device-modal').classList.add('hidden'); store.set('nabd_seen_modal', true); }
+        function saveDeviceModal() {
+            const brand = $('m-brand').value, sv = $('m-model-sel').value;
+            const model = sv === '__other' ? $('m-model').value.trim() : sv;
+            if (!brand) return showToast('اختر الشركة المصنعة', true);
+            if (!model) return showToast('اختر الطراز أو اكتبه', true);
+            device = { brand: brand, model: model, year: findYear(brand, model), storage: $('m-storage').value, ram: '', ramOpts: [], ramState: 'loading', ramSrc: '' };
+            store.set('nabd_device', device); closeDeviceModal(); applyDevice(); renderValue(); renderRamCell(); useRam();
+            showToast('تم حفظ بيانات الجهاز');
+        }
+        function deviceLabel() {
+            if (!device.model) return '';
+            const st = device.storage ? ` ${device.storage >= 1024 ? device.storage / 1024 + 'TB' : device.storage + 'GB'}` : '';
+            return device.model + st;
+        }
+        function applyDevice() {
+            $('header-device-badge').innerText = device.model || 'اسم الجهاز';
+            $('pm').innerText = deviceLabel() || 'لم يُحدد، اضغط تغيير';
+            const g = codeGroup(device.brand || detected.brand);
+            $('bat-path').innerHTML = `<strong>من أين أقرأها؟</strong> ${BAT_PATH[g] || BAT_DEFAULT}`;
+            renderCodes();
+        }
+
+        /* ===== أكواد الفحص ===== */
+        function renderCodes() {
+            const mine = codeGroup(device.brand || detected.brand || (isAndroid ? 'other' : ''));
+            const list = CODES.slice().sort((a, b) => (b.group === mine) - (a.group === mine));
+            $('codes-list').innerHTML = list.map(c => `
+                <details class="bg-black/40 rounded-xl border ${c.group === mine ? 'border-purple-500/50' : 'border-neutral-800'}" ${c.group === mine ? 'open' : ''}>
+                    <summary class="cursor-pointer p-3 text-xs font-bold text-white flex items-center justify-between gap-2">
+                        <span>${c.name}${c.group === mine ? ' <span class="text-[10px] text-purple-300 font-normal">(جهازك)</span>' : ''}</span>
+                        <i class="fa-solid fa-chevron-down text-neutral-500"></i>
+                    </summary>
+                    <div class="px-3 pb-3 space-y-2">
+                        ${c.items.map(([code, d]) => `<div class="flex items-start gap-2 text-[11px] text-neutral-300 leading-relaxed">
+                            ${code ? `<button onclick="copyCode('${code}')" class="flex-none font-mono font-bold text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded-lg px-2 py-1" dir="ltr" aria-label="نسخ الكود ${code}">${code} <i class="fa-regular fa-copy"></i></button>` : '<i class="fa-solid fa-circle-check text-purple-400 mt-1"></i>'}
+                            <span class="pt-0.5">${d}</span></div>`).join('')}
+                    </div>
+                </details>`).join('');
+        }
+        async function copyCode(c) {
+            showToast(await copyText(c) ? 'نُسخ الكود، الصقه في لوحة أرقام تطبيق الاتصال' : 'اكتب الكود يدوياً: ' + c);
+        }
+
+        /* ===== لوحة الفحص ===== */
+        function renderAll() {
+            $('tests-list').innerHTML = TESTS.map(t => {
+                const r = results[t.id]; const st = r ? r.status : 'none';
+                const chip = { pass: 'سليم', fail: 'يوجد خلل', none: 'لم يُفحص' }[st];
+                return `<button onclick="goTest('${t.id}')" class="w-full bg-neutral-900/60 p-4 rounded-2xl border border-neutral-800 flex items-center gap-4 text-right">
+                    <div class="w-10 h-10 rounded-xl bg-neutral-950 ${t.color} flex items-center justify-center text-lg border border-neutral-800 flex-none"><i class="fa-solid ${t.icon}"></i></div>
+                    <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-white">${t.title}</h4><span class="text-xs text-neutral-400">${r && r.note ? esc(r.note) : t.desc}</span></div>
+                    <span class="chip ${st}">${chip}</span></button>`;
+            }).join('');
+            TESTS.forEach(t => {
+                const el = $('st-' + t.id); if (!el) return;
+                const r = results[t.id]; const st = r ? r.status : 'none';
+                el.className = 'chip ' + st; el.innerText = { pass: 'سليم', fail: 'يوجد خلل', none: 'لم يُفحص' }[st];
+            });
+            let total = 0, passed = 0, done = 0, fails = 0;
+            TESTS.forEach(t => { const r = results[t.id]; if (r) { done++; total += t.weight; if (r.status === 'pass') passed += t.weight; else fails++; } });
+            const score = total ? Math.round(passed / total * 100) : null;
+            const ring = $('ring');
+            ring.style.setProperty('--p', score === null ? 0 : score);
+            ring.style.setProperty('--ringc', score === null || score >= 85 ? '#10b981' : score >= 60 ? '#f59e0b' : '#f43f5e');
+            $('health-score').innerText = score === null ? '--' : score;
+            $('sum-title').innerText = !done ? 'ابدأ فحص الجهاز' : fails ? `وُجد خلل في ${fails} ${fails === 1 ? 'فحص' : 'فحوصات'}` : 'كل ما فُحص سليم';
+            $('sum-text').innerText = !done ? 'نفّذ الفحوصات الـ15، وكل نتيجة تُحسب في التقييم وفي تقدير السعر.' : `أُنجز ${done} من ${TESTS.length} فحوصات. اضغط أي فحص للانتقال إليه.`;
+            renderValue();
+            if (!$('section-report').classList.contains('hidden')) renderReport();
+        }
+        function verdictOf() {
+            let total = 0, passed = 0, done = 0; const fails = [];
+            TESTS.forEach(t => { const r = results[t.id]; if (r) { done++; total += t.weight; if (r.status === 'pass') passed += t.weight; else fails.push(t); } });
+            const score = total ? Math.round(passed / total * 100) : null;
+            let label = 'لم يُفحص بعد', color = 'text-neutral-400', ring = '#525252';
+            if (score !== null) {
+                if (score >= 90) { label = 'ممتاز'; color = 'text-emerald-400'; ring = '#10b981'; }
+                else if (score >= 75) { label = 'جيد جداً'; color = 'text-emerald-300'; ring = '#34d399'; }
+                else if (score >= 60) { label = 'جيد'; color = 'text-amber-300'; ring = '#f59e0b'; }
+                else if (score >= 40) { label = 'مقبول'; color = 'text-orange-400'; ring = '#f97316'; }
+                else { label = 'ضعيف'; color = 'text-rose-400'; ring = '#f43f5e'; }
+            }
+            const serious = fails.filter(t => ['screen', 'touch', 'camera', 'battery', 'parts', 'charge'].indexOf(t.id) >= 0);
+            let advice;
+            if (results.imei && results.imei.status === 'fail') advice = 'رقم IMEI غير صالح أو لا يطابق العلبة. هذه علامة خطر: قد يكون الجهاز مسروقاً أو معدَّلاً. ننصح بعدم الشراء.';
+            else if (!done) advice = 'ابدأ الفحوصات من تبويب الفحص، ثم ارجع هنا لترى التقرير النهائي.';
+            else if (done < TESTS.length) advice = `أكملت ${done} من ${TESTS.length} فحوصات. أكمل الباقي قبل اتخاذ قرار الشراء.`;
+            else if (!fails.length) advice = 'الجهاز اجتاز كل الفحوصات. ننصح بالشراء إذا كان السعر ضمن النطاق العادل.';
+            else if (serious.length >= 2 || (score !== null && score < 60)) advice = 'يوجد أكثر من عطل مهم. ننصح بتجنب الشراء، أو التفاوض على خصم كبير يغطي تكلفة الإصلاح.';
+            else advice = 'يوجد عطل يؤثر على القيمة. تفاوض على السعر ليغطي تكلفة الإصلاح قبل الشراء.';
+            return { score: score, label: label, color: color, ring: ring, done: done, fails: fails, advice: advice };
+        }
+        function renderReport() {
+            const v = verdictOf();
+            const now = new Date();
+            const date = now.toLocaleDateString('ar-OM', { year: 'numeric', month: 'long', day: 'numeric' }) + ' • ' + now.toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit' });
+            const rows = TESTS.map(t => {
+                const r = results[t.id]; const st = r ? r.status : 'none';
+                const ic = st === 'pass' ? 'fa-circle-check text-emerald-400' : st === 'fail' ? 'fa-circle-xmark text-rose-400' : 'fa-circle text-neutral-600';
+                return `<div class="flex items-center gap-3 p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs"><i class="fa-solid ${ic} text-base"></i><span class="font-bold text-white flex-none">${t.title}</span><span class="text-neutral-400 text-left flex-1 truncate">${r && r.note ? esc(r.note) : (st === 'none' ? 'لم يُفحص' : '')}</span></div>`;
+            }).join('');
+            const price = lastRange
+                ? `<div class="text-3xl font-black text-amber-400">${lastRange.lo} - ${lastRange.hi} <span class="text-sm">ر.ع</span></div><p class="text-[11px] text-neutral-400">${lastRange.ded ? `شامل خصم الأعطال (${lastRange.ded}%)` : 'بدون خصومات أعطال'}</p>`
+                : `<p class="text-xs text-neutral-400 leading-relaxed">لم يُحسب السعر بعد.</p><button onclick="switchTab('market')" class="mt-2 text-xs bg-neutral-950 text-emerald-400 font-bold px-4 py-2 rounded-xl border border-neutral-800">احسب السعر من تبويب التسعير</button>`;
+            $('report-body').innerHTML = `
+            <div class="glass-panel p-6 rounded-3xl space-y-4">
+                <div class="flex items-center justify-between border-b border-neutral-900 pb-4 gap-3">
+                    <div><h2 class="text-lg font-bold text-white">التقرير النهائي</h2><p class="text-[11px] text-neutral-400">${date}</p></div>
+                    <div class="text-left"><span class="block text-[11px] text-neutral-400">الجهاز</span><span class="text-sm font-bold text-emerald-400">${esc(deviceLabel() || 'لم يُحدد')}</span></div>
+                </div>
+                <div class="flex items-center gap-5">
+                    <div class="ring w-24 h-24 rounded-full flex-none grid place-items-center" style="--p:${v.score || 0};--ringc:${v.ring}">
+                        <div class="w-[78px] h-[78px] rounded-full bg-[#121212] grid place-items-center text-center"><div><span class="text-2xl font-black text-white">${v.score === null ? '--' : v.score}</span><span class="block text-[10px] text-neutral-400">من 100</span></div></div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <span class="text-[11px] text-neutral-400">الحالة العامة</span>
+                        <h3 class="text-2xl font-black ${v.color}">${v.label}</h3>
+                        <p class="text-xs text-neutral-400">سليم ${v.done - v.fails.length} • به خلل ${v.fails.length} • لم يُفحص ${TESTS.length - v.done}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-panel p-6 rounded-3xl text-center space-y-1"><span class="text-xs text-neutral-400 block">السعر النهائي العادل للجهاز</span>${price}</div>
+            <div class="glass-panel p-5 rounded-3xl space-y-2"><h3 class="text-sm font-bold text-white mb-1">تفاصيل الفحوصات</h3>${rows}</div>
+            <div class="p-4 rounded-2xl border border-sky-500/30 bg-sky-500/10 text-sky-100 text-sm leading-relaxed"><i class="fa-solid fa-lightbulb text-sky-300"></i> <strong>التوصية:</strong> ${v.advice}</div>`;
+        }
+        function resetAll() {
+            if (!confirm('مسح كل النتائج وبيانات الجهاز والبدء من جديد؟')) return;
+            results = {}; battery = null; device = { brand: '', model: '', year: null, storage: '' };
+            store.set('nabd_results', results); store.set('nabd_battery', null); store.set('nabd_device', device); store.set('nabd_price', null);
+            $('bat-h').value = ''; $('bat-unk').checked = false; $('np').value = ''; $('age').value = 'unknown';
+            document.querySelectorAll('.pq').forEach(c => c.checked = false);
+            hw = {}; renderHw(); imeiVal = ''; $('imei-in').value = ''; checkImei(); sessionEntryId = null; perfScore = null;
+            ['sharp-box', 'cert-preview', 'captured-preview', 'aa-steps', 'pf-chart', 'ch-manual'].forEach(i => $(i).classList.add('hidden'));
+            ['aa-st', 'ch-st', 'fl-st', 'gps-st', 'pf-st', 'mic-st', 'mo-st'].forEach(i => $(i).innerText = '');
+            stopGuided(); stopPerf(); stopGps(); if (chargeOff) chargeOff();
+            applyDevice(); renderAll(); switchTab('scan'); openDeviceModal();
+        }
+        async function shareReport() {
+            const lines = TESTS.map(t => { const r = results[t.id]; return `${r ? (r.status === 'pass' ? '✅' : '❌') : '⬜'} ${t.title}${r && r.note ? ': ' + r.note : ''}`; });
+            const v = verdictOf();
+            const text = `التقرير النهائي — نبض الهاتف (XMETA)${device.model ? '\nالجهاز: ' + deviceLabel() : ''}\nالتقييم: ${v.score === null ? '--' : v.score}/100 (${v.label})${lastRange ? '\nالسعر النهائي العادل: ' + lastRange.lo + ' - ' + lastRange.hi + ' ر.ع' : ''}\n\n${lines.join('\n')}\n\nالتوصية: ${v.advice}\n\nنبض الهاتف • ابتكار طلابي من سلطنة عُمان 🇴🇲`;
+            try {
+                if (navigator.share) { await navigator.share({ title: 'تقرير فحص الهاتف', text: text }); return; }
+                showToast(await copyText(text) ? 'نُسخ التقرير، الصقه في واتساب' : 'تعذر النسخ', false);
+            } catch (e) { if (e.name !== 'AbortError') showToast('تعذرت المشاركة', true); }
+        }
+
+        /* ===== الشاشة ===== */
+        const COLORS = [['#ffffff', 'أبيض'], ['#000000', 'أسود'], ['#ff0000', 'أحمر'], ['#00ff00', 'أخضر'], ['#0000ff', 'أزرق'], ['#808080', 'رمادي'], ['#383838', 'رمادي غامق: ابحث عن ظل لصور قديمة (احتراق)'], ['linear-gradient(90deg,#000,#fff)', 'تدرج: يجب أن يكون ناعماً بلا خطوط']];
+        function runColors() {
+            const ov = $('dead-pixel-overlay'), lb = $('dead-pixel-badge'); let i = 0;
+            const show = () => {
+                ov.style.background = COLORS[i][0];
+                lb.innerText = `${i + 1} من ${COLORS.length}: ${COLORS[i][1]} (انقر للتالي)`;
+                lb.style.opacity = 1; clearTimeout(lb._t); lb._t = setTimeout(() => lb.style.opacity = 0, 2200);
+            };
+            ov.style.display = 'block'; goFull(ov); show();
+            ov.onclick = () => {
+                if (++i < COLORS.length) return show();
+                ov.style.display = 'none'; exitFull();
+                ask('screen', 'هل لاحظت نقطة لا يتغير لونها، أو بقعة، أو خطوطاً، أو ظلالاً على أطراف الشاشة؟', 'لا، سليمة', 'نعم، لاحظت', 'لا توجد بكسلات ميتة أو بقع', 'بكسلات ميتة أو بقع في الشاشة');
+            };
+        }
+        function runTouch() {
+            const ov = $('touch-ov'); const cols = 6;
+            const rows = Math.max(8, Math.round(cols * innerHeight / innerWidth));
+            ov.style.direction = 'ltr'; // الشبكة من اليسار لليمين لتطابق إحداثيات اللمس
+            ov.style.gridTemplateColumns = `repeat(${cols},1fr)`; ov.innerHTML = ''; const cells = [];
+            for (let k = 0; k < cols * rows; k++) { const d = document.createElement('div'); d.className = 'c'; ov.appendChild(d); cells.push(d); }
+            const bar = document.createElement('div');
+            bar.id = 'touch-bar'; bar.dir = 'rtl';
+            bar.className = 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 items-center bg-black/90 border border-neutral-700 rounded-2xl p-2';
+            bar.innerHTML = `<span id="touch-left" class="text-xs text-white px-2 whitespace-nowrap"></span><button id="tb-fail" class="bg-rose-600 text-white font-bold text-xs px-3 py-2 rounded-xl whitespace-nowrap">منطقة لا تستجيب</button><button id="tb-exit" class="bg-neutral-800 text-white font-bold text-xs px-3 py-2 rounded-xl">خروج</button>`;
+            ov.appendChild(bar);
+            let left = cols * rows; $('touch-left').innerText = `متبقٍ ${left}`;
+            const end = status => {
+                ov.style.display = 'none'; ov.onpointerdown = ov.onpointermove = null; exitFull();
+                if (status) setAndToast('touch', status, status === 'pass' ? 'كل مناطق الشاشة تستجيب' : 'جزء من الشاشة لا يستجيب للمس');
+            };
+            const mark = (x, y) => {
+                const c = Math.min(cols - 1, Math.max(0, Math.floor(x / innerWidth * cols)));
+                const r = Math.min(rows - 1, Math.max(0, Math.floor(y / innerHeight * rows)));
+                const cell = cells[r * cols + c]; if (cell.dataset.on) return;
+                cell.dataset.on = 1; cell.style.background = '#10b981'; left--;
+                $('touch-left').innerText = `متبقٍ ${left}`;
+                if (left === 0) setTimeout(() => end('pass'), 250);
+            };
+            const handle = e => {
+                if (e.target.closest('#touch-bar')) return;
+                if (e.type === 'pointermove' && e.pointerType === 'mouse' && !e.buttons) return;
+                const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+                (evs.length ? evs : [e]).forEach(p => mark(p.clientX, p.clientY));
+            };
+            ov.onpointerdown = handle; ov.onpointermove = handle;
+            $('tb-fail').onclick = () => end('fail'); $('tb-exit').onclick = () => end(null);
+            ov.style.display = 'grid'; goFull(ov);
+        }
+
+        /* ===== الكاميرا ===== */
+        let camStream = null; const camOk = {};
+        function camNote() { return `الخلفية ${camOk.environment ? '✓' : 'لم تُفحص'} • الأمامية ${camOk.user ? '✓' : 'لم تُفحص'}`; }
+        async function openCam(facing) {
+            stopCam(); const v = $('camera-video'); const out = facing === 'user' ? $('cam-front') : $('cam-back');
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false });
+                v.srcObject = camStream; v.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';
+                v.classList.remove('hidden'); $('camera-placeholder').classList.add('hidden');
+                await v.play().catch(() => {});
+                const s = camStream.getVideoTracks()[0].getSettings();
+                out.innerText = `تعمل • بث ${s.width || v.videoWidth}×${s.height || v.videoHeight}`; out.className = 'font-bold text-xs text-emerald-400';
+                camOk[facing] = true;
+                try { const n = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput').length; if (n) { $('cam-count').innerText = `يرى المتصفح ${n} ${n === 1 ? 'كاميرا' : n === 2 ? 'كاميرتين' : 'كاميرات'} في الجهاز. بعض الأجهزة تدمج العدسات الخلفية في كاميرا واحدة، فالعدد هنا قد يكون أقل من الحقيقي.`; $('cam-count').classList.remove('hidden'); } } catch (e) {}
+            } catch (e) {
+                out.innerText = e.name === 'NotAllowedError' ? 'الصلاحية مرفوضة' : e.name === 'NotFoundError' ? 'غير موجودة' : 'تعذر الفتح';
+                out.className = 'font-bold text-xs text-rose-400';
+                showToast(e.name === 'NotAllowedError' ? 'اسمح بصلاحية الكاميرا من إعدادات المتصفح' : 'تعذر فتح الكاميرا، تأكد أن التطبيق مفتوح من رابط https', true);
+            }
+        }
+        function stopCam() {
+            if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+            const v = $('camera-video'); if (v) v.classList.add('hidden');
+            const p = $('camera-placeholder'); if (p) p.classList.remove('hidden');
+        }
+        function snap() {
+            const v = $('camera-video');
+            if (!camStream || !v.videoWidth) return showToast('شغّل كاميرا أولاً', true);
+            const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+            c.getContext('2d').drawImage(v, 0, 0);
+            const img = $('captured-preview'); img.src = c.toDataURL('image/jpeg', 0.85); img.classList.remove('hidden');
+            try { showSharpness(analyzeShot(c)); } catch (e) {}
+            showToast('تم التقاط الصورة وتحليل وضوحها');
+        }
+
+        /* ===== السماعات والمايكروفون ===== */
+        let actx;
+        function audio() {
+            if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+            if (actx.state === 'suspended') actx.resume();
+            return actx;
+        }
+        function tone(pan) {
+            const a = audio(), o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+            o.frequency.value = 440;
+            g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+            o.connect(g);
+            if (a.createStereoPanner) { const p = a.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(a.destination); } else g.connect(a.destination);
+            o.start(t); o.stop(t + 1.25);
+        }
+        let micStop = null;
+        function stopMic() { if (micStop) { micStop(); micStop = null; } $('mic-bar').style.width = '0'; }
+        function stopMicBtn() { const on = !!micStop; stopMic(); $('mic-st').innerText = on ? 'تم إيقاف المايكروفون.' : 'المايكروفون متوقف أصلاً.'; }
+        async function startMic() {
+            stopMic();
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const a = audio(), src = a.createMediaStreamSource(s), an = a.createAnalyser();
+                an.fftSize = 1024; src.connect(an);
+                const buf = new Uint8Array(an.fftSize); let hits = 0, raf;
+                $('mic-st').innerText = 'تكلّم الآن…';
+                const loop = () => {
+                    an.getByteTimeDomainData(buf);
+                    let sum = 0; for (let k = 0; k < buf.length; k++) { const d = (buf[k] - 128) / 128; sum += d * d; }
+                    const pct = Math.min(100, Math.sqrt(sum / buf.length) * 400);
+                    $('mic-bar').style.width = pct + '%';
+                    if (pct > 30 && ++hits === 12) { $('mic-st').innerText = '✓ التقط المايكروفون صوتك بوضوح'; setAndToast('mic', 'pass', 'المايكروفون يلتقط الصوت'); }
+                    raf = requestAnimationFrame(loop);
+                };
+                loop();
+                micStop = () => { cancelAnimationFrame(raf); s.getTracks().forEach(t => t.stop()); src.disconnect(); };
+            } catch (e) {
+                $('mic-st').innerText = e.name === 'NotAllowedError' ? 'لم تُمنح صلاحية المايكروفون. اسمح بها من إعدادات المتصفح.' : 'تعذر تشغيل المايكروفون. تأكد أن التطبيق مفتوح من رابط https.';
+            }
+        }
+
+        /* ===== الحساس ===== */
+        let motionOn = false;
+        async function startMotion() {
+            if (motionOn) return;
+            try {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    const p = await DeviceOrientationEvent.requestPermission();
+                    if (p !== 'granted') { $('mo-st').innerText = 'رُفض الإذن. أغلق التطبيق وافتحه من جديد واختر "السماح".'; return; }
+                }
+            } catch (e) { $('mo-st').innerText = 'تعذر طلب الإذن. تأكد أن التطبيق مفتوح من رابط https.'; return; }
+            motionOn = true;
+            let got = false, done = false, bMin = 999, bMax = -999, gMin = 999, gMax = -999;
+            $('mo-st').innerText = 'حرّك الهاتف الآن…';
+            window.addEventListener('deviceorientation', e => {
+                if (e.beta == null) return; got = true;
+                $('motion-alpha').innerText = Math.round(e.alpha || 0) + '°';
+                $('motion-beta').innerText = Math.round(e.beta) + '°';
+                $('motion-gamma').innerText = Math.round(e.gamma) + '°';
+                bMin = Math.min(bMin, e.beta); bMax = Math.max(bMax, e.beta);
+                gMin = Math.min(gMin, e.gamma); gMax = Math.max(gMax, e.gamma);
+                if (done) return;
+                $('mo-st').innerText = `مدى الحركة: أمامي ${Math.round(bMax - bMin)}° وجانبي ${Math.round(gMax - gMin)}°`;
+                if (bMax - bMin > 40 && gMax - gMin > 40) { done = true; $('mo-st').innerText = '✓ الحساس يستجيب في كل الاتجاهات'; setAndToast('motion', 'pass', 'يستجيب في كل الاتجاهات'); }
+            });
+            setTimeout(() => { if (!got) { motionOn = false; $('mo-st').innerText = 'لم تصل أي قراءات. على الحاسوب هذا طبيعي، وعلى الهاتف تأكد أن التطبيق مفتوح من رابط https.'; } }, 3000);
+        }
+
+        /* ===== البطارية والقطع ===== */
+        function saveBattery() {
+            const raw = $('bat-h').value.trim(), h = Number(raw), unk = $('bat-unk').checked;
+            if (!raw || !Number.isInteger(h) || h < 1 || h > 100) return showToast('اكتب نسبة صحيحة بين 1 و 100', true);
+            battery = { health: h, unknown: unk }; store.set('nabd_battery', battery);
+            setAndToast('battery', h >= 80 && !unk ? 'pass' : 'fail', `صحة البطارية ${h}%${h < 80 ? ' (تحتاج تغييراً)' : ''}${unk ? ' • غير أصلية' : ''}`);
+        }
+        const PARTS_Q = [
+            'تظهر رسالة "قطعة غير معروفة" في الإعدادات ← عام ← حول (آيفون)، أو رسالة قطعة غير أصلية في أي جهاز.',
+            'خيار True Tone غير موجود في إعدادات الشاشة (آيفون 8 فما بعد).',
+            'بصمة الوجه أو بصمة الإصبع لا تعمل أو اختفت من الإعدادات.',
+            'يوجد فراغ أو بروز بين الشاشة والإطار، أو أثر غراء، أو خدوش حول البراغي.',
+            'ألوان الشاشة باهتة أو سطوعها ضعيف مقارنة بجهاز أصلي من نفس النوع.'
+        ];
+        function saveParts() {
+            const n = document.querySelectorAll('.pq:checked').length;
+            if (!n) return showToast('لم تحدد شيئاً. اضغط "لا شيء مما سبق" إذا كان الجهاز سليماً', true);
+            setAndToast('parts', 'fail', `${n} ${n === 1 ? 'علامة' : 'علامات'} على قطع مبدولة`);
+        }
+
+        /* ===== المواصفات ===== */
+        function measureHz() {
+            return new Promise(res => { let n = 0; const t0 = performance.now(); const f = t => { n++; if (t - t0 < 1000) requestAnimationFrame(f); else res(n * 1000 / (t - t0)); }; requestAnimationFrame(f); });
+        }
+        function browserName(ua) {
+            if (/CriOS/.test(ua)) return 'Chrome (على iOS)';
+            if (/FxiOS/.test(ua)) return 'Firefox (على iOS)';
+            if (/; wv\)/.test(ua)) return 'تطبيق أندرويد (WebView)';
+            if (/EdgiOS|EdgA|Edg\//.test(ua)) return 'Edge';
+            if (/SamsungBrowser/.test(ua)) return 'Samsung Internet';
+            if (/Chrome\//.test(ua)) return 'Chrome';
+            if (/Firefox\//.test(ua)) return 'Firefox';
+            if (/Safari\//.test(ua)) return 'Safari';
+            return 'غير معروف';
+        }
+        /* إصدار iOS: نص "OS 18_x" داخل UA مجمّد ولا يعكس الإصدار الحقيقي، أما Version/x فهو إصدار Safari ويطابق إصدار النظام */
+        function detectIOSVersion(ua) {
+            const tok = ua.match(/OS (\d+)[_.](\d+)/);
+            const saf = ua.match(/Version\/(\d+)[._](\d+)/);
+            const KEY = 'xmeta_ios_ver';
+            let ver = '', note = '';
+            if (saf) {
+                ver = `${saf[1]}.${saf[2]}`;
+                if (tok && +tok[1] > +saf[1]) ver = `${tok[1]}.${tok[2]}`;
+                try { localStorage.setItem(KEY, ver); } catch (e) {}
+            } else {
+                let saved = ''; try { saved = localStorage.getItem(KEY) || ''; } catch (e) {}
+                const tokVer = tok ? `${tok[1]}.${tok[2]}` : '';
+                if (saved && (!tokVer || parseFloat(saved) >= parseFloat(tokVer))) { ver = saved; note = '(من آخر فتح في Safari)'; }
+                else { ver = tokVer; note = tokVer ? '(تقريبي، افتح الرابط في Safari لقراءة أدق)' : ''; }
+            }
+            return { ver, note };
+        }
+        /* ===== قاعدة الرام المضمّنة (جيجابايت): أبل وسامسونج وجوجل، والباقي يُجلب من الإنترنت ===== */
+        const RAM_DB = (() => {
+            const raw = `iPhone 7=2;iPhone 7 Plus=3;iPhone 8=2;iPhone 8 Plus=3;iPhone X=3;iPhone XR=3;iPhone XS=4;iPhone XS Max=4;iPhone 11=4;iPhone 11 Pro=4;iPhone 11 Pro Max=4;iPhone SE (2020)=3;iPhone 12 mini=4;iPhone 12=4;iPhone 12 Pro=6;iPhone 12 Pro Max=6;iPhone 13 mini=4;iPhone 13=4;iPhone 13 Pro=6;iPhone 13 Pro Max=6;iPhone SE (2022)=4;iPhone 14=6;iPhone 14 Plus=6;iPhone 14 Pro=6;iPhone 14 Pro Max=6;iPhone 15=6;iPhone 15 Plus=6;iPhone 15 Pro=8;iPhone 15 Pro Max=8;iPhone 16e=8;iPhone 16=8;iPhone 16 Plus=8;iPhone 16 Pro=8;iPhone 16 Pro Max=8;iPhone 17=8;iPhone Air=12;iPhone 17 Pro=12;iPhone 17 Pro Max=12;
+iPad Pro 13 (M5)=12/16;iPad Pro 11 (M5)=12/16;iPad Air 13 (M3)=8;iPad Air 11 (M3)=8;iPad (A16)=6;iPad mini (A17 Pro)=8;iPad Pro 13 (M4)=8/16;iPad Pro 11 (M4)=8/16;iPad Air 13 (M2)=8;iPad Air 11 (M2)=8;iPad (10th gen)=4;iPad Pro 12.9 (M2)=8/16;iPad Pro 11 (M2)=8/16;iPad Air (5th gen)=8;iPad mini (6th gen)=4;iPad (9th gen)=3;iPad Pro 12.9 (M1)=8/16;iPad Pro 11 (M1)=8/16;iPad Air (4th gen)=4;iPad (8th gen)=3;
+Galaxy Z Fold7=12/16;Galaxy Z Flip7=12;Galaxy Z Flip7 FE=8;Galaxy Z Fold6=12;Galaxy Z Flip6=12;Galaxy Z Fold5=12;Galaxy Z Flip5=8;Galaxy Z Fold4=12;Galaxy Z Flip4=8;Galaxy S25 Ultra=12/16;Galaxy S25+=12;Galaxy S25=12;Galaxy S25 Edge=12;Galaxy S25 FE=8;Galaxy S24 Ultra=12;Galaxy S24+=12;Galaxy S24=8;Galaxy S24 FE=8;Galaxy S23 Ultra=8/12;Galaxy S23+=8;Galaxy S23=8;Galaxy S23 FE=8;Galaxy S22 Ultra=8/12;Galaxy S22+=8;Galaxy S22=8;Galaxy S21 Ultra=12/16;Galaxy S21=8;Galaxy S21 FE=6/8;Galaxy Note20 Ultra=12;Galaxy A56=8/12;Galaxy A36=6/8/12;Galaxy A26=6/8;Galaxy A16=4/6/8;Galaxy A06=4/6;Galaxy A17=4/6/8;Galaxy A07=4/6;Galaxy A55=8/12;Galaxy A35=6/8;Galaxy A25=6/8;Galaxy A15=4/6/8;Galaxy A05s=4/6;Galaxy A54=6/8;Galaxy A34=6/8;Galaxy A24=4/6/8;Galaxy A14=4/6;Galaxy A53=6/8;Galaxy A33=4/6/8;Galaxy A23=4/6/8;Galaxy A13=3/4/6;
+Galaxy Tab S11 Ultra=12/16;Galaxy Tab S11=12;Galaxy Tab S10 FE+=8/12;Galaxy Tab S10 FE=6/8;Galaxy Tab A11+=6/8;Galaxy Tab A11=4/8;Galaxy Tab S10 Ultra=12/16;Galaxy Tab S10+=12;Galaxy Tab S9 Ultra=12/16;Galaxy Tab S9+=12;Galaxy Tab S9=8/12;Galaxy Tab S9 FE+=8/12;Galaxy Tab S9 FE=6/8;Galaxy Tab A9+=4/8;Galaxy Tab A9=4/8;Galaxy Tab S8 Ultra=8/12/16;Galaxy Tab S8+=8/12;Galaxy Tab S8=8/12;Galaxy Tab A8=3/4;Galaxy Tab S7 FE=4/6;
+Pixel 10 Pro XL=16;Pixel 10 Pro=16;Pixel 10=12;Pixel 10 Pro Fold=16;Pixel 10a=8;Pixel 9a=8;Pixel 9 Pro XL=16;Pixel 9 Pro=16;Pixel 9=12;Pixel 9 Pro Fold=16;Pixel 8a=8;Pixel 8 Pro=12;Pixel 8=8;Pixel Fold=12;Pixel 7a=8;Pixel 7 Pro=12;Pixel 7=8;Pixel 6a=6;Pixel 6 Pro=12;Pixel 6=8;Pixel Tablet=8`;
+            const m = {};
+            raw.split(/;\s*/).forEach(e => { const i = e.lastIndexOf('='); if (i > 0) m[e.slice(0, i).replace(/\s+/g, ' ').trim().toLowerCase().replace(/[^a-z0-9+]/g, '')] = e.slice(i + 1).split('/').map(Number); });
+            return m;
+        })();
+        function ramFromDb() {
+            const o = RAM_DB[String(device.model).toLowerCase().replace(/[^a-z0-9+]/g, '')];
+            if (!o) return null;
+            let opts = o.slice();
+            if (opts.length === 2 && /ipadpro/i.test(device.model.replace(/\s/g, '')) && device.storage) opts = [+device.storage >= 1024 ? opts[1] : opts[0]];
+            return opts;
+        }
+        /* ===== الرام: تُجلب من الإنترنت بعد اختيار الجهاز (لا قراءة من المتصفح) ===== */
+        const tmo = (u, ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms || 9000); return fetch(u, { signal: c.signal }); };
+        const norm = t => String(t).toLowerCase().replace(/[^a-z0-9+]/g, '');
+        function ramNums(txt) {
+            const out = new Set(); let m; const re = /(\d{1,2})\s*(?:GB|GiB)/gi;
+            while ((m = re.exec(txt))) { const n = +m[1]; if ([1, 2, 3, 4, 6, 8, 12, 16, 18, 24, 32].includes(n)) out.add(n); }
+            return [...out].sort((a, b) => a - b);
+        }
+        function fullName() {
+            const en = (BRANDS[device.brand] && (BRANDS[device.brand].name.match(/\(([^)]+)\)/) || [])[1]) || '';
+            const first = en.split(' ')[0];
+            return norm(device.model).indexOf(norm(first)) === 0 || !first ? device.model : `${first} ${device.model}`;
+        }
+        async function ramFromWikipedia(q) {
+            const api = 'https://en.wikipedia.org/w/api.php?format=json&origin=*&action=query&';
+            const sr = await (await tmo(api + 'list=search&srlimit=4&srsearch=' + encodeURIComponent(q))).json();
+            const titles = ((sr.query || {}).search || []).map(x => x.title);
+            if (!titles.length) return null;
+            const pg = await (await tmo(api + 'prop=revisions&rvprop=content&rvslots=main&titles=' + encodeURIComponent(titles.join('|')))).json();
+            const pages = Object.values((pg.query || {}).pages || {}), want = norm(device.model);
+            for (const t of titles) {
+                const pgx = pages.find(x => x.title === t); if (!pgx || !pgx.revisions) continue;
+                if (norm(t).indexOf(want) < 0 && norm(t + ' ' + t).indexOf(want) < 0) continue;
+                const wt = pgx.revisions[0].slots.main['*'] || '';
+                const f = wt.match(/\|\s*memory\s*=([\s\S]*?)(?=\n\s*\|\s*[a-z_ ]+=|\n\}\})/i);
+                const nums = f ? ramNums(f[1]) : [];
+                if (nums.length) return { opts: nums, src: 'ويكيبيديا' };
+            }
+            return null;
+        }
+        async function ramFromGsmarena(q) {
+            const px = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u);
+            const html1 = await (await tmo(px('https://www.gsmarena.com/results.php3?sQuickSearch=yes&sName=' + encodeURIComponent(q)), 12000)).text();
+            const hits = [...html1.matchAll(/<li><a href="([^"]+\.php)"[^>]*>[\s\S]*?<strong><span>([\s\S]*?)<\/span>/g)];
+            const hit = hits.find(h => norm(h[2].replace(/<[^>]+>/g, '')) === norm(q)) || hits.find(h => norm(h[2]).indexOf(norm(device.model)) >= 0);
+            if (!hit) return null;
+            const html2 = await (await tmo(px('https://www.gsmarena.com/' + hit[1]), 12000)).text();
+            const cell = html2.match(/data-spec="internalmemory"[^>]*>([\s\S]*?)<\/td>/i);
+            const nums = cell ? ramNums(cell[1].replace(/\d+\s*(?:GB|TB)\s+(?=\d+\s*GB\s*RAM)/gi, '')) : [];
+            return nums.length ? { opts: nums, src: 'GSMArena' } : null;
+        }
+        async function fetchRam() {
+            const mine = device; mine.ramState = 'loading'; renderRamCell();
+            const q = fullName(); let r = null;
+            try { r = await ramFromWikipedia(q); } catch (e) {}
+            if (!r) { try { r = await ramFromGsmarena(q); } catch (e) {} }
+            if (device !== mine) return;
+            if (r) { mine.ramOpts = r.opts; mine.ramSrc = r.src; mine.ram = r.opts.length === 1 ? r.opts[0] : ''; mine.ramState = 'ok'; }
+            else mine.ramState = 'fail';
+            store.set('nabd_device', mine); renderRamCell();
+        }
+        function useRam() {
+            const o = ramFromDb();
+            if (!o) return fetchRam();
+            device.ramOpts = o; device.ramSrc = 'قاعدة التطبيق'; device.ramState = 'ok'; device.ram = o.length === 1 ? o[0] : '';
+            store.set('nabd_device', device); renderRamCell();
+        }
+        function pickRam(v) { device.ram = v; store.set('nabd_device', device); renderRamCell(); }
+        function renderRamCell() {
+            const c = $('ram-cell'); if (!c) return;
+            const chip = (v, on) => `<button onclick="pickRam(${v})" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold ${on ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-neutral-950 border-neutral-700 text-neutral-300'}">${v} GB</button>`;
+            const retry = '<button onclick="fetchRam()" class="text-emerald-400 underline text-[11px] mr-2">إعادة المحاولة</button>';
+            if (!device.model) { c.innerHTML = '<span class="text-neutral-400 font-normal">اختر الجهاز أولاً لجلبها</span>'; return; }
+            if (device.ramState === 'loading') { c.innerHTML = '<span class="text-amber-400 font-normal"><i class="fa-solid fa-spinner fa-spin"></i> جاري جلبها من الإنترنت...</span>'; return; }
+            if (device.ram) { c.innerHTML = `${device.ram} جيجابايت <span class="text-[10px] text-neutral-500 font-normal">(${device.ramSrc || 'يدوي'})</span>`; return; }
+            if (device.ramState === 'ok') { c.innerHTML = `<div class="flex flex-wrap gap-1.5 justify-end items-center"><span class="text-[10px] text-amber-400 font-normal w-full text-left">اختر الأنسب لجهازك:</span>${device.ramOpts.map(v => chip(v, false)).join('')}</div>`; return; }
+            c.innerHTML = `<div class="flex flex-wrap gap-1.5 justify-end items-center"><span class="text-[10px] text-rose-400 font-normal w-full text-left">تعذر الجلب، اختر يدوياً:${retry}</span>${[2, 3, 4, 6, 8, 12, 16].map(v => chip(v, false)).join('')}</div>`;
+        }
+
+        async function renderSpecs() {
+            const ua = navigator.userAgent; let os = 'غير معروف', ver = '';
+            let verNote = '';
+            if (isIOS) { os = 'iOS (أبل)'; const r = detectIOSVersion(ua); ver = r.ver; verNote = r.note; }
+            else if (isAndroid) { os = 'أندرويد'; const m = ua.match(/Android ([\d.]+)/); if (m) ver = m[1]; }
+            else if (/Windows/.test(ua)) os = 'ويندوز'; else if (/Mac/.test(ua)) os = 'ماك'; else if (/Linux/.test(ua)) os = 'لينكس';
+            if (isAndroid && navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+                try { const hv = await navigator.userAgentData.getHighEntropyValues(['platformVersion']); if (hv.platformVersion) ver = hv.platformVersion.split('.')[0]; } catch (e) {}
+            }
+            const dpr = window.devicePixelRatio || 1;
+            const hzRaw = await measureHz();
+            const hz = [60, 90, 120, 144].reduce((a, b) => Math.abs(b - hzRaw) < Math.abs(a - hzRaw) ? b : a);
+            const conn = navigator.connection && navigator.connection.effectiveType;
+            let bat = null;
+            if (navigator.getBattery) { try { const b = await navigator.getBattery(); bat = `${Math.round(b.level * 100)}%${b.charging ? ' ⚡ يشحن' : ''}`; } catch (e) {} }
+            let auto = 'غير متاح';
+            if (detected.model) auto = esc(detected.model) + (detected.code ? ` (${esc(detected.code)})` : '');
+            else if (detected.candidates.length) auto = detected.candidates.join(' أو ');
+            else if (detected.code) auto = esc(detected.code);
+            else if (isIOS) auto = 'أبل تمنع قراءته';
+            const rows = [
+                ['fa-industry', 'الشركة', detected.brand ? BRANDS[detected.brand].name : 'غير متاحة'],
+                ['fa-mobile-screen', 'الطراز المكتشف تلقائياً', auto],
+                ['fa-gear', 'نظام التشغيل', os + (ver ? ' ' + ver : '') + (verNote ? ` <span class="text-[10px] text-amber-400 font-normal">${verNote}</span>` : '')],
+                ['fa-globe', 'المتصفح', browserName(ua)],
+                ['fa-expand', 'دقة الشاشة الفعلية', `${Math.round(screen.width * dpr)} × ${Math.round(screen.height * dpr)} بكسل`],
+                ['fa-gauge', 'معدل التحديث في المتصفح', `${hz} هرتز تقريباً`],
+                ['fa-hand-pointer', 'نقاط اللمس المتزامنة', navigator.maxTouchPoints ? `${navigator.maxTouchPoints}` : 'لا يوجد لمس'],
+                ['fa-microchip', 'أنوية المعالج المتاحة', navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency}` : 'غير متاح'],
+                ['fa-memory', 'الذاكرة RAM', '<span id="ram-cell"></span>'],
+                ['fa-battery-half', 'الشحن الحالي', bat || 'لا يسمح المتصفح بقراءته'],
+                ['fa-wifi', 'نوع الاتصال', conn ? conn.toUpperCase() : 'غير متاح']
+            ];
+            $('specs-list').innerHTML = rows.map(([i, k, v]) => `<div class="flex justify-between items-center gap-3 p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs"><span class="text-neutral-400 flex items-center gap-2 flex-none"><i class="fa-solid ${i} text-emerald-400 w-4"></i>${k}</span><span class="font-bold text-white text-left">${v}</span></div>`).join('')
+                + `<p class="text-[11px] text-neutral-400 leading-relaxed pt-1">${isIOS ? 'ملاحظة: متصفحات الآيفون تعرض الصفحات بحد أقصى 60 هرتز حتى لو كانت الشاشة 120 هرتز.' : 'ملاحظة: وضع توفير الطاقة قد يخفض معدل التحديث المقروء.'}</p>`;
+            renderRamCell();
+            if (bat) { $('bat-live').innerText = 'الشحن الحالي مقروء من الجهاز: ' + bat; $('bat-live').classList.remove('hidden'); }
+        }
+
+        /* ===== التسعير ===== */
+        const RATES = [['USD', 2.6008, '$'], ['SAR', 9.7529, 'ر.س'], ['AED', 9.5514, 'د.إ'], ['QAR', 9.4669, 'ر.ق']];
+        const DEDUCT = { screen: 20, touch: 20, camera: 15, parts: 15, charge: 10, buttons: 8, speaker: 8, mic: 8, motion: 5, perf: 5, vibration: 3, flash: 3, gps: 3 };
+        const AGE_FACTORS = [0.8, 0.65, 0.5, 0.38, 0.28];
+        const PRICE_MIN = 10, PRICE_MAX = 1500;
+        function openLink(kind) {
+            if (!device.model) { showToast('حدد الجهاز أولاً', true); return openDeviceModal(); }
+            const e = encodeURIComponent, full = deviceLabel();
+            const urls = {
+                specs: `https://www.gsmarena.com/results.php3?sQuickSearch=yes&sName=${e(device.model)}`,
+                newp: `https://www.google.com/search?q=${e(full + ' سعر سلطنة عمان')}`,
+                used: `https://www.google.com/search?q=${e(full + ' site:om.opensooq.com')}`,
+                amazon: `https://www.amazon.ae/s?k=${e(full)}`
+            };
+            window.open(urls[kind], '_blank', 'noopener');
+        }
+        function saveInputs() { store.set('nabd_price', { price: $('np').value, age: $('age').value }); renderValue(); }
+        function renderValue() {
+            const np = $('np'), err = $('np-err'), cur = $('market-currency-list'), box = $('deduct-box');
+            const raw = np.value.trim(), p = Number(raw);
+            const clear = msg => { lastRange = null; $('market-price-range').innerText = '--'; cur.innerHTML = ''; box.innerHTML = msg ? `<p class="text-xs text-neutral-400 leading-relaxed">${msg}</p>` : ''; };
+            np.classList.remove('border-rose-500');
+            err.classList.add('hidden');
+            if (!raw) return clear('ابحث عن سعر الجهاز جديداً من الأزرار أعلاه، ثم اكتبه هنا لحساب القيمة العادلة.');
+            if (!isFinite(p) || p < PRICE_MIN || p > PRICE_MAX) {
+                np.classList.add('border-rose-500');
+                err.innerText = `السعر يجب أن يكون بين ${PRICE_MIN} و ${PRICE_MAX} ريال عماني، فلا يوجد هاتف جديد خارج هذا النطاق. تأكد من السعر وأنه بالريال العماني لا بعملة أخرى.`;
+                err.classList.remove('hidden');
+                return clear('');
+            }
+            let af, spread = 0.1, ageNote = '';
+            const ageSel = $('age').value;
+            if (ageSel === 'unknown') {
+                if (device.year) {
+                    const yrs = Math.max(0, NOW_YEAR - device.year);
+                    af = AGE_FACTORS[Math.min(yrs, 4)]; spread = 0.15;
+                    ageNote = `العمر غير معروف، فقدّرناه من سنة إصدار ${esc(device.model)} (${device.year}). إذا اشتُري الجهاز بعد إصداره بفترة فقيمته أعلى قليلاً.`;
+                } else {
+                    af = 0.5; spread = 0.2;
+                    ageNote = device.model ? 'العمر وسنة الإصدار غير معروفين، لذلك النطاق أوسع من المعتاد.' : 'العمر والطراز غير معروفين، لذلك النطاق أوسع من المعتاد. حدد طراز الجهاز ليكون التقدير أدق.';
+                }
+            } else af = parseFloat(ageSel);
+            let ded = 0; const lines = [];
+            Object.keys(DEDUCT).forEach(id => { if (results[id] && results[id].status === 'fail') { ded += DEDUCT[id]; lines.push(`${TESTS.find(t => t.id === id).title}: خصم ${DEDUCT[id]}%`); } });
+            if (battery) {
+                if (battery.health < 80 || battery.unknown) { ded += 10; lines.push('البطارية تحتاج تغييراً: خصم 10%'); }
+                else if (battery.health < 86) { ded += 5; lines.push(`صحة البطارية ${battery.health}%: خصم 5%`); }
+            }
+            ded = Math.min(ded, 60);
+            const v = p * af * (1 - ded / 100);
+            const r5 = x => Math.max(5, Math.round(x / 5) * 5);
+            const lo = r5(v * (1 - spread)), hi = Math.max(lo + 5, r5(v * (1 + spread)));
+            lastRange = { lo: lo, hi: hi, ded: ded };
+            $('market-price-range').innerText = `${lo} - ${hi} ر.ع`;
+            cur.innerHTML = RATES.map(([k, r, s]) => `<div class="bg-neutral-900/60 p-3 rounded-xl border border-neutral-800 flex justify-between items-center text-xs"><span class="text-neutral-400">${k}</span><span class="font-bold text-white">${Math.round(lo * r)} - ${Math.round(hi * r)} ${s}</span></div>`).join('');
+            const done = TESTS.filter(t => results[t.id]).length;
+            box.innerHTML = (ageNote ? `<div class="p-3 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-200 text-xs leading-relaxed"><i class="fa-solid fa-circle-info"></i> ${ageNote}</div>` : '')
+                + (lines.length
+                    ? `<div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs leading-relaxed">${lines.join('<br>')}</div>`
+                    : done ? '<div class="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs">لا توجد خصومات: كل ما فُحص سليم.</div>' : '')
+                + (done < TESTS.length ? `<p class="text-[11px] text-neutral-400">أُنجز ${done} من ${TESTS.length} فحوصات. أكمل الباقي ليكون التقدير أدق.</p>` : '');
+        }
+
+        /* ===== أدوات عامة جديدة ===== */
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function goTest(id) {
+            const t = TESTS.find(x => x.id === id); if (!t) return;
+            switchTab(t.tab);
+            const el = $('card-' + (t.card || t.id));
+            if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+        }
+
+        /* ===== الفحص الموجّه ===== */
+        let guided = null;
+        function startGuided() {
+            guided = { i: 0 };
+            $('guide-bar').classList.remove('hidden');
+            showGuidedStep();
+        }
+        function clearHl() { document.querySelectorAll('.guide-hl').forEach(e => e.classList.remove('guide-hl')); }
+        function showGuidedStep() {
+            if (!guided) return;
+            while (guided.i < TESTS.length && results[TESTS[guided.i].id]) guided.i++;
+            if (guided.i >= TESTS.length) {
+                stopGuided(); switchTab('report');
+                showToast('اكتمل الفحص الموجَّه، هذا تقريرك النهائي'); return;
+            }
+            const t = TESTS[guided.i];
+            $('gb-step').innerText = `الخطوة ${guided.i + 1} من ${TESTS.length}`;
+            $('gb-title').innerText = t.title;
+            $('gb-bar').style.width = (guided.i / TESTS.length * 100) + '%';
+            clearHl(); goTest(t.id);
+            const el = $('card-' + (t.card || t.id)); if (el) el.classList.add('guide-hl');
+        }
+        function guidedNext() { if (!guided) return; guided.i++; showGuidedStep(); }
+        function stopGuided() { guided = null; $('guide-bar').classList.add('hidden'); clearHl(); }
+
+        /* ===== الفحص الصوتي الآلي: السماعة تصدر والمايكروفون يلتقط ===== */
+        function playTone(f, pan, dur, vol) {
+            const a = audio(), o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+            o.frequency.value = f;
+            g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.6, t + 0.04);
+            g.gain.setValueAtTime(vol || 0.6, t + dur - 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            o.connect(g);
+            if (a.createStereoPanner) { const p = a.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(a.destination); } else g.connect(a.destination);
+            o.start(t); o.stop(t + dur + 0.02);
+        }
+        let aaBusy = false;
+        async function autoAudio() {
+            if (aaBusy) return;
+            const st = $('aa-st'), box = $('aa-steps'); stopMic();
+            let s;
+            try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
+            catch (e) { st.innerText = e.name === 'NotAllowedError' ? 'لم تُمنح صلاحية المايكروفون. اسمح بها من إعدادات المتصفح ثم أعد المحاولة.' : 'تعذر تشغيل المايكروفون. تأكد أن التطبيق مفتوح من رابط https.'; return; }
+            aaBusy = true; $('aa-btn').classList.add('opacity-50');
+            const a = audio(); try { await a.resume(); } catch (e) {}
+            const src = a.createMediaStreamSource(s), an = a.createAnalyser();
+            an.fftSize = 4096; an.smoothingTimeConstant = 0; src.connect(an);
+            const bins = new Float32Array(an.frequencyBinCount), hz = a.sampleRate / an.fftSize;
+            const level = f => { an.getFloatFrequencyData(bins); const k = Math.round(f / hz); let m = -140; for (let d = -2; d <= 2; d++) { const v = bins[k + d]; if (isFinite(v)) m = Math.max(m, v); } return m; };
+            const sample = async (f, ms) => { let best = -140; const t0 = performance.now(); while (performance.now() - t0 < ms) { best = Math.max(best, level(f)); await sleep(30); } return best; };
+            const STEPS = [
+                { f: 1000, pan: 0, label: 'نغمة 1' }, { f: 2500, pan: 0, label: 'نغمة 2' }, { f: 4000, pan: 0, label: 'نغمة 3' },
+                { f: 1800, pan: -1, label: 'اليسار' }, { f: 1800, pan: 1, label: 'اليمين' }
+            ];
+            box.className = 'grid grid-cols-5 gap-1.5 text-center';
+            const cell = (i, cls, ic) => `<div class="p-2 rounded-xl border text-[10px] font-bold ${cls}"><i class="fa-solid ${ic} block text-sm mb-0.5"></i>${STEPS[i].label}</div>`;
+            const paint = (cur, oks) => { box.innerHTML = STEPS.map((x, i) => i < oks.length ? cell(i, oks[i] ? 'border-emerald-500/50 text-emerald-300 bg-emerald-500/10' : 'border-rose-500/50 text-rose-300 bg-rose-500/10', oks[i] ? 'fa-check' : 'fa-xmark') : cell(i, i === cur ? 'border-amber-500/60 text-amber-300' : 'border-neutral-800 text-neutral-500', i === cur ? 'fa-volume-high fa-beat' : 'fa-circle')).join(''); };
+            const oks = [];
+            st.innerText = 'لا تتكلم… نقيس الضجيج ثم نُصدر النغمات';
+            try {
+                for (let i = 0; i < STEPS.length; i++) {
+                    paint(i, oks);
+                    const base = await sample(STEPS[i].f, 300);
+                    playTone(STEPS[i].f, STEPS[i].pan, 0.8, 0.6);
+                    await sleep(120);
+                    const peak = await sample(STEPS[i].f, 550);
+                    oks.push(peak - base > 12 && peak > -80);
+                    await sleep(250);
+                }
+            } finally {
+                s.getTracks().forEach(t => t.stop()); try { src.disconnect(); } catch (e) {}
+                aaBusy = false; $('aa-btn').classList.remove('opacity-50');
+            }
+            paint(-1, oks);
+            const main = oks.slice(0, 3).filter(Boolean).length;
+            if (main >= 2) {
+                const sides = !oks[3] && !oks[4] ? '' : !oks[3] ? ' • تنبيه: القناة اليسرى ضعيفة' : !oks[4] ? ' • تنبيه: القناة اليمنى ضعيفة' : ' • اليسار واليمين يعملان';
+                setResult('speaker', 'pass', `فحص آلي: التُقطت ${main} من 3 نغمات${sides}`);
+                setResult('mic', 'pass', 'فحص آلي: التقط نغمات السماعة بوضوح');
+                st.innerHTML = `<span class="text-emerald-300">✓ السماعة والمايكروفون يعملان (قياس فعلي).</span>${sides ? ' ' + sides.replace(' • ', '') + (sides.indexOf('تنبيه') >= 0 ? '. في بعض الأجهزة سماعة واحدة فقط، فهذا ليس عطلاً دائماً، تأكد بأزرار يسار ويمين بالأسفل.' : '.') : ''}`;
+                showToast('سُجّلت نتيجة السماعة والمايكروفون');
+            } else if (main === 1) {
+                st.innerText = 'التُقطت نغمة واحدة فقط. ارفع الصوت وأعد المحاولة في مكان أهدأ، أو افحص السماعة والمايكروفون يدوياً بالأسفل.';
+            } else {
+                st.innerText = (isIOS ? 'تأكد أن زر الصامت الجانبي غير مفعّل. ' : '') + 'لم يُلتقط أي صوت: إما أن الصوت منخفض، أو أن السماعة أو المايكروفون معطل. ارفع الصوت وأعد المحاولة، ثم افحصهما يدوياً بالأسفل لمعرفة أيهما المعطل.';
+            }
+        }
+
+        /* ===== منفذ الشحن ===== */
+        let chargeOff = null;
+        async function testCharge() {
+            const st = $('ch-st');
+            if (chargeOff) chargeOff();
+            if (!navigator.getBattery) {
+                $('ch-manual').classList.remove('hidden');
+                st.innerHTML = isIOS ? 'أبل لا تسمح للمتصفح بقراءة حالة الشحن. وصّل الشاحن: يجب أن يظهر رمز البرق ⚡ بجانب البطارية أعلى الشاشة مع صوت أو اهتزاز. حرّك السلك قليلاً عند المنفذ: إذا انقطع الشحن فالمنفذ مرتخٍ.' : 'هذا المتصفح لا يسمح بقراءة حالة الشحن. وصّل الشاحن وتأكد من ظهور رمز الشحن.';
+                return;
+            }
+            let b; try { b = await navigator.getBattery(); } catch (e) { $('ch-manual').classList.remove('hidden'); st.innerText = 'تعذرت قراءة البطارية، افحص يدوياً.'; return; }
+            let phase = b.charging ? 'unplug' : 'plug', passed = false, lv = null, lt = 0;
+            const pct = () => Math.round(b.level * 100);
+            st.innerText = phase === 'unplug' ? `الجهاز يشحن الآن (${pct()}%). افصل الشاحن ثم أعد توصيله لنتأكد من المنفذ.` : `البطارية ${pct()}%. وصّل الشاحن الآن…`;
+            const onCharging = () => {
+                if (phase === 'unplug' && !b.charging) { phase = 'plug'; st.innerText = 'ممتاز، الآن أعد توصيل الشاحن…'; return; }
+                if (phase === 'plug' && b.charging && !passed) {
+                    passed = true; lv = b.level; lt = Date.now();
+                    setAndToast('charge', 'pass', 'المنفذ يستجيب ويبدأ الشحن');
+                    st.innerHTML = '<span class="text-emerald-300">✓ اكتُشف بدء الشحن، المنفذ يعمل.</span> اترك الشاحن موصولاً وحرّك السلك قليلاً: إذا ظهر انقطاع فالمنفذ مرتخٍ. نقيس سرعة الشحن الآن…';
+                }
+                if (passed && !b.charging) st.innerHTML = '<span class="text-amber-300">⚠ انقطع الشحن.</span> إذا لم تفصله أنت، فالمنفذ أو السلك مرتخٍ.';
+            };
+            const onLevel = () => {
+                if (!passed || !b.charging || lv === null) return;
+                if (b.level > lv) {
+                    const sec = Math.round((Date.now() - lt) / 1000 / Math.round((b.level - lv) * 100));
+                    st.innerHTML = `<span class="text-emerald-300">✓ المنفذ يعمل.</span> سرعة الشحن تقريباً: 1% كل ${sec} ثانية ${sec <= 45 ? '(سريع)' : sec <= 90 ? '(عادي)' : '(بطيء، جرّب شاحناً أقوى)'}.`;
+                }
+            };
+            b.addEventListener('chargingchange', onCharging); b.addEventListener('levelchange', onLevel);
+            const tm = setTimeout(() => { if (!passed) { st.innerText = 'لم نكتشف بدء الشحن خلال دقيقة ونصف. جرّب شاحناً وسلكاً آخرين، فإن لم يشحن بأي منهما فالمنفذ معطل.'; $('ch-manual').classList.remove('hidden'); } }, 90000);
+            chargeOff = () => { clearTimeout(tm); b.removeEventListener('chargingchange', onCharging); b.removeEventListener('levelchange', onLevel); chargeOff = null; };
+        }
+
+        /* ===== الفلاش ===== */
+        let flashStream = null;
+        function stopFlash() { if (flashStream) { flashStream.getTracks().forEach(t => t.stop()); flashStream = null; } }
+        const FLASH_MANUAL = isIOS ? 'أبل لا تسمح بتشغيل الفلاش من المتصفح. افتح مركز التحكم (اسحب من أعلى يمين الشاشة) واضغط زر الكشاف 🔦، ثم اختر النتيجة.' : 'هذا المتصفح لا يسمح بالتحكم بالفلاش. شغّل الكشاف من الإعدادات السريعة (اسحب من أعلى الشاشة)، ثم اختر النتيجة.';
+        async function testFlash() {
+            const st = $('fl-st'); stopCam(); stopFlash();
+            if (isIOS || !navigator.mediaDevices) { st.innerText = FLASH_MANUAL; return; }
+            try {
+                flashStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+                const tr = flashStream.getVideoTracks()[0];
+                const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = flashStream; v.play().catch(() => {});
+                await sleep(500);
+                const caps = tr.getCapabilities ? tr.getCapabilities() : {};
+                if (!caps.torch) { stopFlash(); st.innerText = FLASH_MANUAL; return; }
+                st.innerText = 'انظر إلى خلف الهاتف: سيومض الفلاش 3 مرات…';
+                for (let k = 0; k < 3; k++) { await tr.applyConstraints({ advanced: [{ torch: true }] }); await sleep(400); await tr.applyConstraints({ advanced: [{ torch: false }] }); await sleep(350); }
+                await tr.applyConstraints({ advanced: [{ torch: true }] }); await sleep(1500);
+                stopFlash();
+                st.innerText = 'هل ومض الفلاش 3 مرات ثم أضاء بثبات؟ اختر النتيجة.';
+            } catch (e) {
+                stopFlash();
+                st.innerText = e.name === 'NotAllowedError' ? 'لم تُمنح صلاحية الكاميرا، والفلاش يحتاجها.' : FLASH_MANUAL;
+            }
+        }
+
+        /* ===== GPS ===== */
+        let gpsWatch = null;
+        function stopGps() { if (gpsWatch !== null) { navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; } }
+        function testGps() {
+            const st = $('gps-st');
+            if (!navigator.geolocation) { st.innerText = 'المتصفح لا يدعم تحديد الموقع.'; return; }
+            stopGps();
+            st.innerText = 'جاري البحث عن الأقمار الصناعية… (حتى 25 ثانية، والأفضل قرب نافذة أو في مكان مفتوح)';
+            const t0 = performance.now(); let best = null, first = null, ended = false, tm;
+            const finish = () => {
+                if (ended) return; ended = true; clearTimeout(tm); stopGps();
+                if (best === null) { st.innerText = 'لم نحصل على أي موقع. تأكد من تفعيل الموقع في الإعدادات وجرّب في مكان مفتوح.'; return; }
+                const note = `أفضل دقة ${best} متر خلال ${first} ثانية`;
+                if (best <= 60) { setAndToast('gps', 'pass', note); st.innerHTML = `<span class="text-emerald-300">✓ ${note}.</span> الـ GPS ممتاز.`; }
+                else if (best <= 300) { setAndToast('gps', 'pass', note + ' (داخل مبنى)'); st.innerText = `${note}. الدقة مقبولة داخل المباني؛ في الخارج يجب أن تكون أقل من 20 متراً.`; }
+                else { st.innerText = `${note}. الدقة ضعيفة جداً. أعد الفحص في مكان مفتوح، فإن بقيت ضعيفة فهوائي GPS متضرر.`; ask('gps', `الدقة ${best} متر. هل أنت في مكان مفتوح؟`, 'لا، داخل مبنى', 'نعم، في الخارج', note + ' (داخل مبنى)', 'دقة GPS ضعيفة في مكان مفتوح'); }
+            };
+            gpsWatch = navigator.geolocation.watchPosition(p => {
+                const acc = Math.round(p.coords.accuracy);
+                if (first === null) first = Math.max(1, Math.round((performance.now() - t0) / 1000));
+                if (best === null || acc < best) best = acc;
+                st.innerText = `الدقة الحالية ${acc} متر • أفضل دقة ${best} متر`;
+                if (best <= 20) finish();
+            }, err => {
+                if (ended) return; ended = true; clearTimeout(tm); stopGps();
+                st.innerText = err.code === 1 ? 'رُفضت صلاحية الموقع. اسمح بها من إعدادات المتصفح ثم أعد المحاولة.' : 'تعذر تحديد الموقع. تأكد من تفعيل خدمة الموقع في إعدادات الهاتف.';
+            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 25000 });
+            tm = setTimeout(finish, 25000);
+        }
+
+        /* ===== الأداء تحت الضغط ===== */
+        const PERF_SRC = 'onmessage=function(e){var end=performance.now()+e.data,x=0;while(performance.now()<end){var t=performance.now()+200,c=0;while(performance.now()<t){for(var i=0;i<4000;i++){x+=Math.sqrt(i+x%13)*1.0001;}c+=4000;}postMessage(c);}postMessage(-1);};';
+        let perfWorkers = [], perfScore = null;
+        function stopPerf() { perfWorkers.forEach(w => w.terminate()); perfWorkers = []; $('pf-btn').innerHTML = '<i class="fa-solid fa-fire"></i> ابدأ اختبار الضغط'; }
+        function testPerf() {
+            if (perfWorkers.length) { stopPerf(); $('pf-st').innerText = 'أُوقف الاختبار.'; return; }
+            const st = $('pf-st'), chart = $('pf-chart');
+            let url; try { url = URL.createObjectURL(new Blob([PERF_SRC], { type: 'text/javascript' })); } catch (e) { st.innerText = 'المتصفح لا يدعم هذا الاختبار.'; return; }
+            const N = Math.min(navigator.hardwareConcurrency || 4, 8), DUR = 30;
+            const secs = []; let cur = 0, finished = 0; const t0 = performance.now();
+            chart.classList.remove('hidden'); chart.innerHTML = '';
+            $('pf-btn').innerHTML = '<i class="fa-solid fa-stop"></i> إيقاف';
+            for (let k = 0; k < N; k++) {
+                let w; try { w = new Worker(url); } catch (e) { st.innerText = 'المتصفح لا يدعم هذا الاختبار.'; stopPerf(); return; }
+                w.onmessage = e => {
+                    if (e.data < 0) { if (++finished === N) done(); return; }
+                    const s = Math.floor((performance.now() - t0) / 1000);
+                    if (s < DUR) secs[s] = (secs[s] || 0) + e.data;
+                };
+                w.postMessage(DUR * 1000); perfWorkers.push(w);
+            }
+            const draw = () => {
+                const mx = Math.max(...secs.filter(Boolean), 1);
+                chart.innerHTML = Array.from({ length: DUR }, (_, i) => `<div class="flex-1 rounded-sm ${secs[i] ? (secs[i] / mx > 0.8 ? 'bg-emerald-500' : secs[i] / mx > 0.65 ? 'bg-amber-400' : 'bg-rose-500') : 'bg-neutral-800'}" style="height:${secs[i] ? Math.max(6, secs[i] / mx * 100) : 6}%"></div>`).join('');
+            };
+            const iv = setInterval(() => { if (!perfWorkers.length) return clearInterval(iv); const s = Math.min(DUR, Math.floor((performance.now() - t0) / 1000)); st.innerText = `يعمل على ${N} ${N > 2 ? 'أنوية' : 'نواة'}… ${DUR - s} ثانية متبقية. قد يسخن الجهاز قليلاً، هذا طبيعي.`; draw(); }, 500);
+            function done() {
+                clearInterval(iv); stopPerf(); URL.revokeObjectURL(url); draw();
+                const full = secs.slice(1, DUR - 1).filter(Boolean);
+                if (full.length < 10) { st.innerText = 'لم يكتمل الاختبار، أبقِ التطبيق مفتوحاً على الشاشة وأعد المحاولة.'; return; }
+                const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+                const head = avg(full.slice(0, 5)), tail = avg(full.slice(-5));
+                const stab = Math.min(100, Math.round(tail / head * 100));
+                perfScore = Math.round(avg(full) / 1e6);
+                const note = `القوة ${perfScore} مليون عملية/ث • الثبات ${stab}%`;
+                if (stab >= 70) { setAndToast('perf', 'pass', note); st.innerHTML = `<span class="text-emerald-300">✓ ${note}.</span> ${stab >= 85 ? 'الأداء ثابت ممتاز.' : 'هبوط بسيط طبيعي مع الحرارة.'} احفظ الجهاز في السجل لتقارن قوته بأجهزة أخرى.`; }
+                else { setAndToast('perf', 'fail', note + ' (هبوط كبير)'); st.innerHTML = `<span class="text-rose-300">✗ ${note}.</span> الأداء يهبط كثيراً مع الحرارة: قد تكون البطارية متعبة أو التبريد سيئاً، أو أن الهاتف في وضع توفير الطاقة (أوقفه وأعد الفحص).`; }
+            }
+        }
+
+        /* ===== تحليل وضوح الصورة ===== */
+        function analyzeShot(c) {
+            const w = 320, h = Math.max(1, Math.round(c.height * w / c.width));
+            const k = document.createElement('canvas'); k.width = w; k.height = h;
+            const g = k.getContext('2d'); g.drawImage(c, 0, 0, w, h);
+            const d = g.getImageData(0, 0, w, h).data, gr = new Float32Array(w * h); let sum = 0;
+            for (let i = 0, p = 0; i < gr.length; i++, p += 4) { gr[i] = 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2]; sum += gr[i]; }
+            let s1 = 0, s2 = 0, n = 0;
+            for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = y * w + x; const v = 4 * gr[i] - gr[i - 1] - gr[i + 1] - gr[i - w] - gr[i + w]; s1 += v; s2 += v * v; n++; }
+            const mean = s1 / n;
+            return { sharp: Math.round(s2 / n - mean * mean), bright: Math.round(sum / gr.length) };
+        }
+        function showSharpness(r) {
+            const box = $('sharp-box'), lb = $('sharp-label'), bar = $('sharp-bar'), nt = $('sharp-note');
+            box.classList.remove('hidden');
+            const pct = Math.min(100, Math.round(r.sharp / 3));
+            let label, cls, note;
+            if (r.bright < 25) { label = 'مظلمة جداً'; cls = 'text-rose-300'; note = 'الصورة شبه سوداء: هل العدسة مغطاة أو المكان مظلم؟ إذا كانت الإضاءة جيدة فقد تكون الكاميرا معطلة.'; }
+            else if (r.bright > 240) { label = 'ساطعة جداً'; cls = 'text-amber-300'; note = 'الصورة بيضاء تقريباً: ابتعد عن الضوء المباشر وأعد الالتقاط.'; }
+            else if (r.sharp >= 120) { label = 'واضحة'; cls = 'text-emerald-300'; note = 'التفاصيل حادة والتركيز يعمل.'; }
+            else if (r.sharp >= 45) { label = 'مقبولة'; cls = 'text-amber-300'; note = 'الوضوح متوسط. صوّر شيئاً فيه نص أو تفاصيل على بعد 30 سم وأعد الالتقاط، وامسح العدسة.'; }
+            else { label = 'ضبابية'; cls = 'text-rose-300'; note = 'الصورة ضبابية: امسح العدسة وأعد المحاولة. إذا بقيت ضبابية فقد يكون التركيز معطلاً أو داخل العدسة رطوبة أو غبار.'; }
+            lb.className = 'font-bold ' + cls; lb.innerText = `${label} (${r.sharp})`;
+            bar.style.width = pct + '%'; bar.className = 'h-full ' + (cls.indexOf('emerald') >= 0 ? 'bg-emerald-500' : cls.indexOf('amber') >= 0 ? 'bg-amber-400' : 'bg-rose-500');
+            nt.innerText = note + ' التحليل تقريبي ويتأثر بالمشهد.';
+        }
+
+        /* ===== IMEI ===== */
+        let imeiVal = '';
+        const luhnOk = n => { let sum = 0; for (let i = 0; i < n.length; i++) { let d = +n[n.length - 1 - i]; if (i % 2) { d *= 2; if (d > 9) d -= 9; } sum += d; } return sum % 10 === 0; };
+        const imeiValid = n => n.length === 15 && luhnOk(n) && !/^(\d)\1+$/.test(n);
+        const maskImei = () => imeiVal ? '•••••••••••' + imeiVal.slice(-4) : '';
+        function checkImei() {
+            const raw = $('imei-in').value.replace(/\D/g, ''), out = $('imei-out');
+            imeiVal = raw;
+            if (!raw) { out.className = 'text-xs leading-relaxed text-neutral-400'; out.innerText = 'الرقم المزوّر أو المعدَّل يفشل غالباً في خوارزمية لون (Luhn) التي تستخدمها كل الشركات.'; return; }
+            if (raw.length < 15) { out.className = 'text-xs leading-relaxed text-neutral-400'; out.innerText = `${raw.length} من 15 رقماً…`; return; }
+            if (raw.length > 15) { out.className = 'text-xs leading-relaxed text-amber-300'; out.innerText = 'رقم IMEI يتكون من 15 رقماً فقط. إذا ظهر لك 16 رقماً فهذا IMEISV، استخدم رقم IMEI.'; return; }
+            if (imeiValid(raw)) { out.className = 'text-xs leading-relaxed p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-200'; out.innerHTML = `<i class="fa-solid fa-circle-check"></i> الرقم صالح رياضياً. رمز الطراز (TAC): <span dir="ltr" class="font-mono">${raw.slice(0, 8)}</span>. طابقه الآن مع العلبة والإعدادات.`; }
+            else { out.className = 'text-xs leading-relaxed p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-200'; out.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> الرقم غير صالح: خانة التحقق الأخيرة لا تطابق. تأكد من كتابته صحيحاً، فإن تكرر فهذه علامة على رقم معدَّل أو جهاز مقلد.'; }
+        }
+        function saveImei(match) {
+            if (imeiVal.length !== 15) return showToast('اكتب رقم IMEI كاملاً (15 رقماً)', true);
+            const ok = imeiValid(imeiVal);
+            if (match && ok) setAndToast('imei', 'pass', `صالح ويطابق العلبة • ${maskImei()}`);
+            else setAndToast('imei', 'fail', !ok ? `رقم غير صالح • ${maskImei()}` : `لا يطابق العلبة أو الإعدادات • ${maskImei()}`);
+        }
+        async function openImeiSite(k) {
+            if (imeiVal && await copyText(imeiVal)) showToast('نُسخ رقم IMEI، الصقه في الموقع');
+            window.open(k === 'apple' ? 'https://checkcoverage.apple.com/' : 'https://www.imei.info/', '_blank', 'noopener');
+        }
+
+        /* ===== الأزرار والمنافذ ===== */
+        const HW_Q = [
+            ['power', 'زر التشغيل', 'يطفئ الشاشة ويشغلها بضغطة واحدة'],
+            ['volup', 'زر رفع الصوت', 'يظهر شريط الصوت ويرتفع'],
+            ['voldown', 'زر خفض الصوت', 'يظهر شريط الصوت وينخفض'],
+            ['side', 'زر الصامت أو الزر الجانبي', 'زر الصامت أو الإجراء في الآيفون، أو أي زر إضافي'],
+            ['bio', 'بصمة الإصبع أو الوجه', 'سجّل بصمة تجريبية وافتح بها الجهاز'],
+            ['call', 'الاتصال وسماعة المكالمات', 'اتصل برقم واسمع الصوت من أعلى الهاتف'],
+            ['prox', 'حساس القرب', 'أثناء المكالمة قرّب الهاتف من أذنك: تنطفئ الشاشة'],
+            ['sim', 'الشريحة والشبكة', 'تظهر أبراج الإشارة ودرج الشريحة سليم'],
+            ['wifi', 'الواي فاي والبلوتوث', 'اتصل بشبكة وابحث عن أجهزة بلوتوث'],
+            ['jack', 'منفذ السماعة السلكية', 'غير موجود في أغلب الأجهزة الحديثة']
+        ];
+        let hw = {};
+        function renderHw() {
+            $('hw-list').innerHTML = HW_Q.map(([k, n, h]) => `<div class="bg-neutral-900/60 p-3 rounded-xl border border-neutral-800 space-y-2">
+                <div><span class="block text-xs font-bold text-white">${n}</span><span class="text-[11px] text-neutral-400">${h}</span></div>
+                <div class="seg flex gap-1.5">
+                    <button onclick="setHw('${k}','ok')" class="${hw[k] === 'ok' ? 'on-ok' : ''}">يعمل</button>
+                    <button onclick="setHw('${k}','bad')" class="${hw[k] === 'bad' ? 'on-bad' : ''}">لا يعمل</button>
+                    <button onclick="setHw('${k}','na')" class="${hw[k] === 'na' ? 'on-na' : ''}">غير موجود</button>
+                </div></div>`).join('');
+        }
+        function setHw(k, v) { hw[k] = v; renderHw(); }
+        function saveHw() {
+            const left = HW_Q.filter(q => !hw[q[0]]);
+            if (left.length) return showToast(`بقي ${left.length}: حدد حالة "${left[0][1]}"`, true);
+            const bad = HW_Q.filter(q => hw[q[0]] === 'bad').map(q => q[1]);
+            setAndToast('buttons', bad.length ? 'fail' : 'pass', bad.length ? 'لا يعمل: ' + bad.join('، ') : 'كل الأزرار والمنافذ تعمل');
+        }
+
+        /* ===== سجل الأجهزة والمقارنة (يُحفظ في الهاتف فقط) ===== */
+        const HKEY = 'xmeta_history';
+        const hist = {
+            get() { try { return JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch (e) { return []; } },
+            set(v) { try { localStorage.setItem(HKEY, JSON.stringify(v)); return true; } catch (e) { return false; } }
+        };
+        let sessionEntryId = null;
+        function saveHistory() {
+            const v = verdictOf();
+            if (!v.done) return showToast('لا توجد نتائج لحفظها بعد', true);
+            const list = hist.get();
+            const entry = { id: sessionEntryId || Date.now(), date: new Date().toISOString(), model: deviceLabel() || 'جهاز غير محدد', score: v.score, label: v.label, done: v.done, total: TESTS.length, fails: v.fails.map(t => t.title), price: lastRange ? [lastRange.lo, lastRange.hi] : null, perf: perfScore };
+            const i = list.findIndex(x => x.id === entry.id);
+            if (i >= 0) list[i] = entry; else list.push(entry);
+            sessionEntryId = entry.id;
+            if (!hist.set(list.slice(-40))) return showToast('تعذر الحفظ في هذا المتصفح', true);
+            renderHistory(); renderStats();
+            showToast(i >= 0 ? 'حُدّث الجهاز في السجل' : 'حُفظ الجهاز في السجل');
+        }
+        function delHistory(id) {
+            if (!confirm('حذف هذا الجهاز من السجل؟')) return;
+            hist.set(hist.get().filter(x => x.id !== id)); if (sessionEntryId === id) sessionEntryId = null;
+            renderHistory(); renderStats();
+        }
+        function clearHistory() { if (!confirm('مسح كل السجل؟')) return; hist.set([]); sessionEntryId = null; renderHistory(); renderStats(); }
+        function renderHistory() {
+            const box = $('history-list'); if (!box) return;
+            const list = hist.get();
+            if (!list.length) { box.innerHTML = '<p class="text-xs text-neutral-400 leading-relaxed">احفظ تقرير كل جهاز تفحصه، وعندما تفحص أكثر من جهاز نقارن بينها هنا ونخبرك أيها الأفضل.</p>'; return; }
+            const bestScore = list.reduce((a, x) => x.score > (a ? a.score : -1) ? x : a, null);
+            const priced = list.filter(x => x.price && x.score);
+            const bestValue = priced.length > 1 ? priced.reduce((a, x) => (x.score / ((x.price[0] + x.price[1]) / 2)) > (a.score / ((a.price[0] + a.price[1]) / 2)) ? x : a) : null;
+            const ringC = s => s >= 90 ? '#0e9f5b' : s >= 75 ? '#5fca8f' : s >= 60 ? '#d8ad5c' : s >= 40 ? '#e98a3f' : '#db161b';
+            box.innerHTML = list.slice().sort((a, b) => (b.score || 0) - (a.score || 0)).map(x => {
+                const d = new Date(x.date).toLocaleDateString('ar-OM', { day: 'numeric', month: 'short' });
+                const tags = (list.length > 1 && x === bestScore ? '<span class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-md">الأفضل حالة</span>' : '') + (x === bestValue ? '<span class="text-[10px] bg-amber-500 text-black px-1.5 py-0.5 rounded-md">الأفضل قيمة مقابل السعر</span>' : '') + (x.id === sessionEntryId ? '<span class="text-[10px] border border-sky-500/50 text-sky-300 px-1.5 py-0.5 rounded-md">الحالي</span>' : '');
+                return `<div class="flex items-center gap-3 p-3 bg-neutral-900/60 rounded-xl border ${x === bestScore && list.length > 1 ? 'border-emerald-500/40' : 'border-neutral-800'}">
+                    <div class="ring w-12 h-12 rounded-full flex-none grid place-items-center" style="--p:${x.score || 0};--ringc:${ringC(x.score || 0)}"><div class="w-[38px] h-[38px] rounded-full bg-neutral-900 grid place-items-center text-xs font-black text-white">${x.score ?? '--'}</div></div>
+                    <div class="flex-1 min-w-0 space-y-1">
+                        <div class="flex flex-wrap items-center gap-1.5"><span class="text-sm font-bold text-white truncate">${esc(x.model)}</span>${tags}</div>
+                        <div class="text-[11px] text-neutral-400">${esc(x.label)} • ${d}${x.price ? ` • ${x.price[0]}-${x.price[1]} ر.ع` : ''}${x.perf ? ` • قوة ${x.perf}` : ''}</div>
+                        <div class="text-[11px] ${x.fails.length ? 'text-rose-300' : 'text-emerald-300'} truncate">${x.fails.length ? 'أعطال: ' + esc(x.fails.join('، ')) : `بلا أعطال (${x.done} من ${x.total} فحوصات)`}</div>
+                    </div>
+                    <button onclick="delHistory(${x.id})" class="text-neutral-500 hover:text-rose-300 p-2" aria-label="حذف"><i class="fa-solid fa-trash-can"></i></button>
+                </div>`;
+            }).join('') + '<button onclick="clearHistory()" class="text-[11px] text-neutral-500 underline">مسح السجل كاملاً</button>';
+        }
+        function renderStats() {
+            const list = hist.get(), box = $('stats-strip');
+            if (!list.length) { box.classList.add('hidden'); return; }
+            const faults = list.reduce((a, x) => a + x.fails.length, 0), best = Math.max(...list.map(x => x.score || 0));
+            const tile = (n, l, c) => `<div class="glass-panel rounded-2xl p-3"><span class="block text-xl font-black ${c}">${n}</span><span class="text-[10px] text-neutral-400">${l}</span></div>`;
+            box.innerHTML = tile(list.length, 'أجهزة فحصتها', 'text-white') + tile(faults, 'أعطال اكتشفتها', 'text-rose-400') + tile(best, 'أعلى تقييم', 'text-emerald-400');
+            box.classList.remove('hidden');
+        }
+
+        /* ===== شرح طريقة الحساب ===== */
+        function renderExplain() {
+            const tw = TESTS.reduce((a, t) => a + t.weight, 0);
+            $('explain-body').innerHTML = `
+                <p><strong class="text-white">التقييم من 100:</strong> لكل فحص وزن حسب أهميته. نجمع أوزان الفحوصات السليمة ونقسمها على أوزان كل ما فحصته، فالفحص الذي لم تجرِه لا يُحسب لك ولا عليك.</p>
+                <div class="grid grid-cols-1 gap-1.5">${TESTS.map(t => `<div class="flex items-center gap-2 bg-neutral-900/60 p-2 rounded-lg border border-neutral-800"><i class="fa-solid ${t.icon} ${t.color} w-4"></i><span class="flex-1">${t.title}</span><span class="text-neutral-400">وزن ${Math.round(t.weight / tw * 100)}%</span><span class="text-amber-300 w-20 text-left">${DEDUCT[t.id] ? 'خصم ' + DEDUCT[t.id] + '%' : t.id === 'battery' ? 'خصم 5-10%' : t.id === 'imei' ? 'تحذير' : '—'}</span></div>`).join('')}</div>
+                <p><strong class="text-white">التصنيف:</strong> ممتاز 90+ • جيد جداً 75+ • جيد 60+ • مقبول 40+ • ضعيف أقل من 40.</p>
+                <p><strong class="text-white">السعر العادل:</strong> سعر الجديد × نسبة العمر × (100% − خصومات الأعطال). نسبة العمر: أقل من سنة 80%، سنة إلى سنتين 65%، 2-3 سنوات 50%، 3-4 سنوات 38%، أكثر من 4 سنوات 28%. الخصومات بحد أقصى 60%، والنطاق ±10% (أوسع إذا كان العمر غير معروف).</p>
+                <p><strong class="text-white">البطارية:</strong> أقل من 80% أو غير أصلية: خصم 10%. من 80% إلى 85%: خصم 5%.</p>
+                <p><strong class="text-white">IMEI:</strong> نتحقق من الخانة الأخيرة بخوارزمية لون (Luhn). الرقم غير الصالح أو غير المطابق يجعل التوصية "لا تشترِ" مهما كانت بقية النتائج.</p>`;
+        }
+
+        /* ===== شهادة الفحص: صورة مع رمز QR ===== */
+        function qrText() {
+            const v = verdictOf();
+            const d = new Date(); const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            return [
+                'نبض الهاتف XMETA - تقرير فحص',
+                'الجهاز: ' + (deviceLabel() || 'غير محدد'),
+                `التقييم: ${v.score === null ? '--' : v.score}/100 (${v.label})`,
+                lastRange ? `السعر العادل: ${lastRange.lo}-${lastRange.hi} ر.ع` : '',
+                `سليم ${v.done - v.fails.length} | خلل ${v.fails.length} | لم يفحص ${TESTS.length - v.done}`,
+                v.fails.length ? 'الأعطال: ' + v.fails.map(t => t.title).join('، ') : '',
+                imeiVal && results.imei ? 'IMEI: ' + maskImei() : '',
+                'التاريخ: ' + ds
+            ].filter(Boolean).join('\n');
+        }
+        function wrapLines(ctx, text, maxW) {
+            const words = text.split(' '), lines = []; let line = '';
+            words.forEach(w => { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; });
+            if (line) lines.push(line); return lines;
+        }
+        function fitText(ctx, text, maxW) {
+            if (ctx.measureText(text).width <= maxW) return text;
+            let t = text; while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+            return t + '…';
+        }
+        async function buildCert() {
+            try { await document.fonts.ready; } catch (e) {}
+            const v = verdictOf(), W = 1080, P = 60, F = "Tajawal, Tahoma, 'Segoe UI', sans-serif";
+            const rowsN = Math.ceil(TESTS.length / 2), ROW = 76;
+            const tmp = document.createElement('canvas').getContext('2d'); tmp.font = `500 28px ${F}`;
+            const adv = wrapLines(tmp, 'التوصية: ' + v.advice, W - 2 * P - 48);
+            const QS = 420, H = 680 + rowsN * ROW + 20 + (adv.length * 42 + 30) + 40 + QS + 20 + 70;
+            const c = document.createElement('canvas'); c.width = W; c.height = H;
+            const x = c.getContext('2d'); x.direction = 'rtl';
+            // الخلفية الرملية والنقش
+            x.fillStyle = '#fbf6ec'; x.fillRect(0, 0, W, H);
+            x.strokeStyle = 'rgba(196,148,59,0.10)'; x.lineWidth = 2;
+            for (let yy = 0; yy < H; yy += 90) for (let xx = (yy / 90 % 2) * 45; xx < W; xx += 90) { x.save(); x.translate(xx, yy); x.rotate(Math.PI / 4); x.strokeRect(-14, -14, 28, 28); x.restore(); x.strokeRect(xx - 14, yy - 14, 28, 28); }
+            // علم عُمان: الشريط العلوي
+            x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, 18); x.fillStyle = '#db161b'; x.fillRect(0, 18, W, 18); x.fillStyle = '#008a47'; x.fillRect(0, 36, W, 18);
+            x.fillStyle = '#db161b'; x.fillRect(0, 0, 220, 54);
+            x.strokeStyle = '#e3d8ca'; x.lineWidth = 2; x.strokeRect(1, 1, W - 2, 52);
+            // شُرفات
+            x.fillStyle = 'rgba(196,148,59,0.35)'; for (let xx = 0; xx < W; xx += 40) x.fillRect(xx, 54, 20, 12); x.fillRect(0, 66, W, 5);
+            // العنوان
+            x.textAlign = 'right'; x.fillStyle = '#1b1613'; x.font = `900 56px ${F}`; x.fillText('شهادة فحص جهاز', W - P, 150);
+            x.font = `700 28px ${F}`; x.fillStyle = '#bf1217'; x.fillText('نبض الهاتف • XMETA', W - P, 196);
+            const now = new Date();
+            x.font = `500 24px ${F}`; x.fillStyle = '#7f7064';
+            x.fillText(now.toLocaleDateString('ar-OM', { year: 'numeric', month: 'long', day: 'numeric' }) + ' • ' + now.toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit' }), W - P, 236);
+            // بطاقة الجهاز والتقييم
+            const by = 270, bh = 210;
+            x.fillStyle = '#ffffff'; x.strokeStyle = '#e3d8ca'; x.lineWidth = 2; rr(x, P, by, W - 2 * P, bh, 28); x.fill(); x.stroke();
+            const cx = P + 120, cy = by + bh / 2, R = 78;
+            x.lineWidth = 18; x.strokeStyle = '#efe6d8'; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.stroke();
+            const ringCol = v.score === null ? '#a8978a' : v.score >= 75 ? '#008a47' : v.score >= 60 ? '#c4943b' : v.score >= 40 ? '#d9701f' : '#db161b';
+            if (v.score) { x.strokeStyle = ringCol; x.lineCap = 'round'; x.beginPath(); x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v.score / 100); x.stroke(); x.lineCap = 'butt'; }
+            x.textAlign = 'center'; x.fillStyle = '#1b1613'; x.font = `900 52px ${F}`; x.fillText(v.score === null ? '--' : v.score, cx, cy + 14);
+            x.font = `500 20px ${F}`; x.fillStyle = '#7f7064'; x.fillText('من 100', cx, cy + 44);
+            x.textAlign = 'right';
+            x.font = `500 24px ${F}`; x.fillStyle = '#7f7064'; x.fillText('الجهاز', W - P - 36, by + 54);
+            x.font = `800 38px ${F}`; x.fillStyle = '#1b1613'; x.fillText(fitText(x, deviceLabel() || 'غير محدد', W - 2 * P - 330), W - P - 36, by + 100);
+            x.font = `900 40px ${F}`; x.fillStyle = ringCol; x.fillText(v.label, W - P - 36, by + 154);
+            x.font = `500 22px ${F}`; x.fillStyle = '#7f7064'; x.fillText(`سليم ${v.done - v.fails.length} • به خلل ${v.fails.length} • لم يُفحص ${TESTS.length - v.done}`, W - P - 36, by + 190);
+            // السعر
+            let y = by + bh + 30;
+            x.fillStyle = '#1b1613'; rr(x, P, y, W - 2 * P, 70, 20); x.fill();
+            x.font = `500 24px ${F}`; x.fillStyle = '#d8ad5c'; x.fillText('السعر العادل التقديري', W - P - 30, y + 45);
+            x.textAlign = 'left'; x.font = `900 34px ${F}`; x.fillStyle = '#ffffff';
+            x.fillText(lastRange ? `${lastRange.lo} - ${lastRange.hi} ر.ع` : 'لم يُحسب', P + 30, y + 47);
+            x.textAlign = 'right';
+            // الفحوصات بعمودين
+            y += 100;
+            const colW = (W - 2 * P - 20) / 2;
+            TESTS.forEach((t, i) => {
+                const col = i % 2, row = Math.floor(i / 2);
+                const rx = W - P - col * (colW + 20), ry = y + row * ROW;
+                const r = results[t.id], st = r ? r.status : 'none';
+                x.fillStyle = st === 'pass' ? '#eaf6ee' : st === 'fail' ? '#fcebec' : '#f3ede4'; rr(x, rx - colW, ry, colW, ROW - 12, 16); x.fill();
+                const ix = rx - 34, iy = ry + (ROW - 12) / 2;
+                x.fillStyle = st === 'pass' ? '#008a47' : st === 'fail' ? '#db161b' : '#cbbcaa'; x.beginPath(); x.arc(ix, iy, 15, 0, Math.PI * 2); x.fill();
+                x.strokeStyle = '#fff'; x.lineWidth = 4; x.lineCap = 'round'; x.beginPath();
+                if (st === 'pass') { x.moveTo(ix - 7, iy); x.lineTo(ix - 2, iy + 6); x.lineTo(ix + 8, iy - 6); }
+                else if (st === 'fail') { x.moveTo(ix - 6, iy - 6); x.lineTo(ix + 6, iy + 6); x.moveTo(ix + 6, iy - 6); x.lineTo(ix - 6, iy + 6); }
+                else { x.moveTo(ix - 6, iy); x.lineTo(ix + 6, iy); }
+                x.stroke(); x.lineCap = 'butt';
+                x.fillStyle = '#1b1613'; x.font = `700 25px ${F}`; x.fillText(fitText(x, t.title, colW - 70), rx - 62, ry + 30);
+                x.fillStyle = '#7f7064'; x.font = `400 18px ${F}`; x.fillText(fitText(x, r && r.note ? r.note : st === 'none' ? 'لم يُفحص' : '', colW - 76), rx - 62, ry + 54);
+            });
+            y += rowsN * ROW + 20;
+            // التوصية
+            const ah = adv.length * 42 + 30;
+            x.fillStyle = '#fff8e6'; x.strokeStyle = '#e8c983'; x.lineWidth = 2; rr(x, P, y, W - 2 * P, ah, 20); x.fill(); x.stroke();
+            x.fillStyle = '#5c4f46'; x.font = `500 28px ${F}`; adv.forEach((l, i) => x.fillText(l, W - P - 24, y + 48 + i * 42));
+            y += ah + 40;
+            // رمز QR
+            const qs = QS, qx = P, qy = y;
+            x.fillStyle = '#ffffff'; x.strokeStyle = '#e3d8ca'; rr(x, qx, qy, qs + 20, qs + 20, 18); x.fill(); x.stroke();
+            try { drawQR(x, qrText(), qx + 10, qy + 10, qs); } catch (e) {}
+            x.textAlign = 'right'; x.fillStyle = '#1b1613'; x.font = `800 30px ${F}`; x.fillText('امسح الرمز بكاميرا أي هاتف', W - P, qy + 70);
+            x.font = `400 24px ${F}`; x.fillStyle = '#5c4f46';
+            wrapLines(x, 'يحتوي ملخص التقرير ويُقرأ بدون إنترنت، ليتأكد المشتري من النتائج.', W - 2 * P - qs - 60).forEach((l, i) => x.fillText(l, W - P, qy + 116 + i * 36));
+            x.font = `700 22px ${F}`; x.fillStyle = '#bf1217'; x.fillText('ابتكار طلابي من سلطنة عُمان', W - P, qy + qs - 4);
+            // شريط سفلي
+            x.fillStyle = '#008a47'; x.fillRect(0, H - 14, W, 14); x.fillStyle = '#db161b'; x.fillRect(0, H - 14, 220, 14);
+            return c;
+        }
+        function rr(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+        async function shareImage() {
+            const v = verdictOf(); if (!v.done) return showToast('أجرِ بعض الفحوصات أولاً', true);
+            const c = await buildCert();
+            const img = $('cert-preview'); img.src = c.toDataURL('image/png'); img.classList.remove('hidden');
+            const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+            const file = blob && new File([blob], 'xmeta-report.png', { type: 'image/png' });
+            try {
+                if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'شهادة فحص الهاتف' }); return; }
+            } catch (e) { if (e.name === 'AbortError') return; }
+            try { const a = document.createElement('a'); a.href = img.src; a.download = 'xmeta-report.png'; document.body.appendChild(a); a.click(); a.remove(); } catch (e) {}
+            showToast('الشهادة جاهزة بالأسفل، اضغط عليها مطولاً لحفظها');
+            setTimeout(() => img.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+        }
+        async function printReport() {
+            const v = verdictOf(); if (!v.done) return showToast('أجرِ بعض الفحوصات أولاً', true);
+            const c = await buildCert(), img = $('print-img');
+            await new Promise(r => { img.onload = r; img.onerror = r; img.src = c.toDataURL('image/png'); });
+            try { window.print(); } catch (e) { showToast('الطباعة غير مدعومة هنا، استخدم زر شهادة الفحص', true); }
+        }
+
+        /* ===== مولّد رمز QR (بدون إنترنت) ===== */
+        const QR = (() => {
+            const ECC = [-1, 7, 10, 15, 20, 26, 18, 20, 24, 30, 18, 20, 24, 26, 30, 22, 24, 28, 30, 28, 28, 28, 28, 30, 30, 26, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30];
+            const BLK = [-1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 4, 6, 6, 6, 6, 7, 8, 8, 9, 9, 10, 12, 12, 12, 13, 14, 15, 16, 17, 18, 19, 19, 20, 21, 22, 24, 25];
+            const rawMods = v => { let r = (16 * v + 128) * v + 64; if (v >= 2) { const n = Math.floor(v / 7) + 2; r -= (25 * n - 10) * n - 55; if (v >= 7) r -= 36; } return r; };
+            const dataCw = v => Math.floor(rawMods(v) / 8) - ECC[v] * BLK[v];
+            const mul = (a, b) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((b >>> i) & 1) * a; } return z & 255; };
+            const rsDiv = d => { const r = new Array(d).fill(0); r[d - 1] = 1; let root = 1; for (let i = 0; i < d; i++) { for (let j = 0; j < d; j++) { r[j] = mul(r[j], root); if (j + 1 < d) r[j] ^= r[j + 1]; } root = mul(root, 2); } return r; };
+            const rsRem = (data, div) => { const r = div.map(() => 0); data.forEach(b => { const f = b ^ r.shift(); r.push(0); div.forEach((c, i) => r[i] ^= mul(c, f)); }); return r; };
+            const align = v => { if (v === 1) return []; const n = Math.floor(v / 7) + 2, step = v === 32 ? 26 : Math.ceil((v * 4 + 4) / (n * 2 - 2)) * 2, res = [6]; for (let p = v * 4 + 10; res.length < n; p -= step) res.splice(1, 0, p); return res; };
+            return function encode(text) {
+                const bytes = Array.from(new TextEncoder().encode(text));
+                let v = 1; for (; v <= 40; v++) { const bits = 4 + (v <= 9 ? 8 : 16) + bytes.length * 8; if (bits <= dataCw(v) * 8) break; }
+                if (v > 40) throw new Error('long');
+                const bb = []; const put = (val, n) => { for (let i = n - 1; i >= 0; i--) bb.push((val >>> i) & 1); };
+                put(4, 4); put(bytes.length, v <= 9 ? 8 : 16); bytes.forEach(b => put(b, 8));
+                const cap = dataCw(v) * 8;
+                put(0, Math.min(4, cap - bb.length)); put(0, (8 - bb.length % 8) % 8);
+                for (let p = 0xEC; bb.length < cap; p ^= 0xEC ^ 0x11) put(p, 8);
+                const data = []; for (let i = 0; i < bb.length; i += 8) { let b = 0; for (let j = 0; j < 8; j++) b = (b << 1) | bb[i + j]; data.push(b); }
+                // تقسيم وتصحيح الأخطاء
+                const nb = BLK[v], el = ECC[v], raw = Math.floor(rawMods(v) / 8), nShort = nb - raw % nb, sLen = Math.floor(raw / nb), div = rsDiv(el), blocks = [];
+                for (let i = 0, k = 0; i < nb; i++) { const dat = data.slice(k, k + sLen - el + (i < nShort ? 0 : 1)); k += dat.length; const ec = rsRem(dat, div); if (i < nShort) dat.push(0); blocks.push(dat.concat(ec)); }
+                const all = []; for (let i = 0; i < blocks[0].length; i++) blocks.forEach((b, j) => { if (i !== sLen - el || j >= nShort) all.push(b[i]); });
+                // المصفوفة
+                const S = v * 4 + 17, M = Array.from({ length: S }, () => new Array(S).fill(false)), FN = Array.from({ length: S }, () => new Array(S).fill(false));
+                const set = (cx, cy, d) => { M[cy][cx] = d; FN[cy][cx] = true; };
+                for (let i = 0; i < S; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+                [[3, 3], [S - 4, 3], [3, S - 4]].forEach(([fx, fy]) => { for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const d = Math.max(Math.abs(dx), Math.abs(dy)), X = fx + dx, Y = fy + dy; if (X >= 0 && X < S && Y >= 0 && Y < S) set(X, Y, d !== 2 && d !== 4); } });
+                const ap = align(v), na = ap.length;
+                for (let i = 0; i < na; i++) for (let j = 0; j < na; j++) { if ((i === 0 && j === 0) || (i === 0 && j === na - 1) || (i === na - 1 && j === 0)) continue; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(ap[i] + dx, ap[j] + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1); }
+                const fmt = mask => { const d = (1 << 3) | mask; let r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537); const b = ((d << 10) | r) ^ 0x5412, g = i => ((b >>> i) & 1) !== 0;
+                    for (let i = 0; i <= 5; i++) set(8, i, g(i)); set(8, 7, g(6)); set(8, 8, g(7)); set(7, 8, g(8)); for (let i = 9; i < 15; i++) set(14 - i, 8, g(i));
+                    for (let i = 0; i < 8; i++) set(S - 1 - i, 8, g(i)); for (let i = 8; i < 15; i++) set(8, S - 15 + i, g(i)); set(8, S - 8, true); };
+                fmt(0);
+                if (v >= 7) { let r = v; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25); const b = (v << 12) | r; for (let i = 0; i < 18; i++) { const bit = ((b >>> i) & 1) !== 0, a = S - 11 + i % 3, c2 = Math.floor(i / 3); set(a, c2, bit); set(c2, a, bit); } }
+                let bi = 0;
+                for (let right = S - 1; right >= 1; right -= 2) { if (right === 6) right = 5; for (let vert = 0; vert < S; vert++) for (let j = 0; j < 2; j++) { const cx = right - j, up = ((right + 1) & 2) === 0, cy = up ? S - 1 - vert : vert; if (!FN[cy][cx] && bi < all.length * 8) { M[cy][cx] = ((all[bi >>> 3] >>> (7 - (bi & 7))) & 1) !== 0; bi++; } } }
+                const MASKS = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x, y) => x % 3 === 0, (x, y) => (x + y) % 3 === 0, (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0, (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+                const applyMask = m => { for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (!FN[y][x] && MASKS[m](x, y)) M[y][x] = !M[y][x]; };
+                const penalty = () => { let p = 0, dark = 0;
+                    const line = get => { let run = 1, s = ''; for (let i = 0; i < S; i++) { const c = get(i); s += c ? '1' : '0'; if (i > 0 && c === get(i - 1)) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } const re = /(?=(10111010000|00001011101))/g; p += ((s.match(re) || []).length) * 40; };
+                    for (let y = 0; y < S; y++) line(i => M[y][i]); for (let x = 0; x < S; x++) line(i => M[i][x]);
+                    for (let y = 0; y < S - 1; y++) for (let x = 0; x < S - 1; x++) { const c = M[y][x]; if (c === M[y][x + 1] && c === M[y + 1][x] && c === M[y + 1][x + 1]) p += 3; }
+                    M.forEach(r => r.forEach(c => { if (c) dark++; })); p += (Math.ceil(Math.abs(dark * 20 - S * S * 10) / (S * S)) - 1) * 10; return p; };
+                let best = 0, bestP = Infinity;
+                for (let m = 0; m < 8; m++) { applyMask(m); fmt(m); const p = penalty(); if (p < bestP) { bestP = p; best = m; } applyMask(m); }
+                applyMask(best); fmt(best);
+                return M;
+            };
+        })();
+        function drawQR(ctx, text, x0, y0, size) {
+            const M = QR(text), n = M.length + 8, s = Math.max(1, Math.floor(size / n)), off = Math.floor((size - n * s) / 2);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(x0, y0, size, size);
+            ctx.fillStyle = '#000000';
+            for (let y = 0; y < M.length; y++) for (let x = 0; x < M.length; x++) if (M[y][x]) ctx.fillRect(x0 + off + (x + 4) * s, y0 + off + (y + 4) * s, s, s);
+        }
+
+        /* ===== التثبيت ===== */
+        let deferredPrompt = null;
+        function hideInstall() { $('install-box').classList.add('hidden'); store.set('nabd_hide_install', true); }
+        function setupInstall() {
+            const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone || /; wv\)/.test(navigator.userAgent);
+            if (standalone || store.get('nabd_hide_install', false)) return;
+            if (isIOS) {
+                $('install-text').innerHTML = '<i class="fa-solid fa-mobile-screen text-emerald-400"></i> <strong>ثبّت التطبيق على الآيفون:</strong> اضغط زر المشاركة <i class="fa-solid fa-arrow-up-from-bracket"></i> في المتصفح، ثم اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong>.';
+                $('install-box').classList.remove('hidden');
+            }
+            window.addEventListener('beforeinstallprompt', e => {
+                e.preventDefault(); deferredPrompt = e;
+                $('install-text').innerHTML = '<strong>ثبّت التطبيق</strong> ليعمل من الشاشة الرئيسية مثل أي تطبيق.';
+                $('install-btn').classList.remove('hidden'); $('install-box').classList.remove('hidden');
+            });
+            $('install-btn').onclick = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; hideInstall(); };
+        }
+
+        /* ===== التشغيل ===== */
+        window.addEventListener('DOMContentLoaded', async () => {
+            $('parts-list').innerHTML = PARTS_Q.map(q => `<label class="flex items-start gap-3 bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800 text-xs text-neutral-300 leading-relaxed"><input type="checkbox" class="pq mt-0.5 w-4 h-4 flex-none accent-rose-500">${q}</label>`).join('');
+            if (isIOS) $('silent-hint').classList.remove('hidden');
+            if (!('vibrate' in navigator)) { $('vib-btn').classList.add('hidden'); $('vib-manual').classList.remove('hidden'); $('vib-sub').innerText = 'فحص يدوي موجَّه'; }
+            if (battery) { $('bat-h').value = battery.health; $('bat-unk').checked = !!battery.unknown; }
+            const sp = store.get('nabd_price', null);
+            $('age').value = (sp && sp.age) || 'unknown';
+            if (sp) $('np').value = sp.price || '';
+            renderHw(); renderHistory(); renderStats(); renderExplain();
+            if (!navigator.getBattery) $('ch-sub').innerText = isIOS ? 'فحص يدوي موجَّه (أبل تمنع قراءة الشحن)' : 'فحص يدوي موجَّه';
+            if (isIOS) $('fl-sub').innerText = 'فحص يدوي من مركز التحكم';
+            applyDevice(); switchTab('scan'); renderAll(); setupInstall();
+            if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+            await detectDevice();
+            applyDevice();
+            renderSpecs();
+            if (!device.model && !store.get('nabd_seen_modal', false)) openDeviceModal();
+        });
+    </script>
+</body>
+</html>
